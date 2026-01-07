@@ -1,0 +1,100 @@
+# postgres-backup-s3cmd Kubernetes CronJob
+#
+# Scheduled PostgreSQL backup to S3-compatible storage.
+#
+# Prerequisites:
+#   - Secret 'postgres-backup-secret' with credentials (see secret.yaml)
+#   - Network access to PostgreSQL and S3 endpoint
+#
+# Apply:
+#   kubectl apply -f cronjob.yaml
+#
+# Manual trigger:
+#   kubectl create job --from=cronjob/postgres-backup postgres-backup-manual
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  labels:
+    app: postgres-backup
+spec:
+  # Daily at 2:00 AM
+  schedule: "0 2 * * *"
+  
+  # Keep last 3 successful and 1 failed job for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  
+  # Don't start new job if previous is still running
+  concurrencyPolicy: Forbid
+  
+  jobTemplate:
+    spec:
+      # Fail job after 1 hour
+      activeDeadlineSeconds: 3600
+      
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          restartPolicy: OnFailure
+          
+          containers:
+            - name: backup
+              image: stefanmarkmann/postgres-backup-s3cmd:17
+              imagePullPolicy: IfNotPresent
+              
+              env:
+                # PostgreSQL connection
+                - name: POSTGRES_HOST
+                  value: "postgres"  # Change to your PostgreSQL service
+                - name: POSTGRES_PORT
+                  value: "5432"
+                - name: POSTGRES_USER
+                  value: "postgres"
+                - name: POSTGRES_DATABASE
+                  value: "mydb"  # Remove for pg_dumpall (all databases)
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-backup-secret
+                      key: POSTGRES_PASSWORD
+                
+                # S3 configuration
+                - name: S3_BUCKET
+                  value: "my-backup-bucket"
+                - name: S3_PREFIX
+                  value: "postgres/daily"
+                - name: S3_ENDPOINT
+                  value: "https://s3.example.com"  # Remove for AWS S3
+                - name: S3_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-backup-secret
+                      key: S3_ACCESS_KEY_ID
+                - name: S3_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-backup-secret
+                      key: S3_SECRET_ACCESS_KEY
+                
+                # Backup settings
+                - name: BACKUP_KEEP_DAYS
+                  value: "7"
+                
+                # Optional: Encryption (uncomment to enable)
+                # - name: PASSPHRASE
+                #   valueFrom:
+                #     secretKeyRef:
+                #       name: postgres-backup-secret
+                #       key: PASSPHRASE
+              
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"

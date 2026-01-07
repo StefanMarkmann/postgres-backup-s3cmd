@@ -1,0 +1,128 @@
+# Build and push Docker images for postgres-backup-s3cmd
+#
+# This workflow builds multi-arch images (amd64, arm64) for each
+# supported PostgreSQL major version and pushes to DockerHub.
+#
+# Triggers:
+# - Push to main branch: builds dev images (sha-xxx, main)
+# - Tags (v*): builds and pushes production images
+# - Pull request: builds only (no push)
+# - Manual trigger: builds and pushes images
+#
+# Image tagging strategy:
+# - Production (tags only):  17, 16, 15, v0.1.0-pg17
+# - Development (main):      sha-abc123f, main
+
+name: Build and Push Images
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: stefanmarkmann/postgres-backup-s3cmd
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pg: 17
+            alpine: "3.21"
+          - pg: 16
+            alpine: "3.20"
+          - pg: 15
+            alpine: "3.19"
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to DockerHub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Determine tag strategy
+        id: tag_strategy
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+            echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Extract metadata for Docker (production tags)
+        id: meta_prod
+        if: steps.tag_strategy.outputs.is_release == 'true'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # Short PG version tag (e.g., 17)
+            type=raw,value=${{ matrix.pg }}
+            # Version + PG tag (e.g., v0.1.0-pg17)
+            type=raw,value=${{ steps.tag_strategy.outputs.version }}-pg${{ matrix.pg }}
+            # Long tag with Alpine version (e.g., 17-alpine3.21)
+            type=raw,value=${{ matrix.pg }}-alpine${{ matrix.alpine }}
+      
+      - name: Extract metadata for Docker (dev tags)
+        id: meta_dev
+        if: steps.tag_strategy.outputs.is_release != 'true' && github.ref == 'refs/heads/main'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # SHA tag (e.g., sha-abc123f-pg17)
+            type=raw,value=sha-${{ steps.tag_strategy.outputs.sha_short }}-pg${{ matrix.pg }}
+            # Main branch tag (e.g., main-pg17)
+            type=raw,value=main-pg${{ matrix.pg }}
+      
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            ALPINE_VERSION=${{ matrix.alpine }}
+            PG_MAJOR=${{ matrix.pg }}
+          tags: ${{ steps.meta_prod.outputs.tags || steps.meta_dev.outputs.tags }}
+          labels: ${{ steps.meta_prod.outputs.labels || steps.meta_dev.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Update DockerHub repository description
+  update-description:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Update DockerHub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.IMAGE_NAME }}
+          readme-filepath: ./README.md
+          short-description: "Simple PostgreSQL dump backups to S3-compatible storage using s3cmd"

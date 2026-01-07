@@ -1,0 +1,93 @@
+# Development/Testing Docker Compose
+#
+# Usage:
+#   cp template.env .env
+#   # Edit .env with your settings
+#   docker compose up -d
+#
+# This sets up:
+#   - PostgreSQL database
+#   - MinIO (S3-compatible storage)
+#   - Backup container
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: ${POSTGRES_DATABASE:-testdb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Create bucket on startup
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 ${S3_ACCESS_KEY_ID:-minioadmin} ${S3_SECRET_ACCESS_KEY:-minioadmin};
+      mc mb --ignore-existing myminio/${S3_BUCKET:-backups};
+      exit 0;
+      "
+
+  # Backup container
+  backup:
+    build:
+      context: .
+      args:
+        ALPINE_VERSION: "3.21"
+        PG_MAJOR: "17"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      # PostgreSQL
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE:-testdb}
+      PGDUMP_EXTRA_OPTS: ${PGDUMP_EXTRA_OPTS:-}
+      # S3 (MinIO)
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-backups}
+      S3_PREFIX: ${S3_PREFIX:-backup}
+      S3_ENDPOINT: http://minio:9000
+      # Backup settings
+      SCHEDULE: ${SCHEDULE:-}
+      PASSPHRASE: ${PASSPHRASE:-}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-}
+
+volumes:
+  postgres_data:
+  minio_data:

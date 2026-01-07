@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+docs/
+examples/
+*.md
+!README.md
+
+# Development files
+.env
+*.env.local
+template.env
+compose.yaml
+compose*.yaml
+
+# CI/CD
+.github/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+*.dump
+*.dump.gpg

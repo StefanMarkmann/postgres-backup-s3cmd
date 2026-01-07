@@ -1,5 +1,23 @@
-.idea
+# Environment files
 .env
+*.env.local
+
+# Local planning documents (not for public repo)
 docs/local/
 memory-bank
 .clinerules
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+*.dump
+*.dump.gpg

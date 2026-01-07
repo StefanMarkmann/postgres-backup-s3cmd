@@ -1,0 +1,142 @@
+# Test workflow for postgres-backup-s3cmd
+#
+# Runs automated tests against PostgreSQL and MinIO services.
+# Tests verify backup/restore functionality, encryption, and failure handling.
+#
+# Triggers:
+# - Push to main branch
+# - Pull requests to main branch
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Test configuration
+  TEST_PG_HOST: localhost
+  TEST_PG_PORT: "5432"
+  TEST_PG_USER: testuser
+  TEST_PG_PASSWORD: testpassword
+  TEST_PG_DATABASE: testdb
+  TEST_S3_ENDPOINT: http://localhost:9000
+  TEST_S3_ACCESS_KEY: minioadmin
+  TEST_S3_SECRET_KEY: minioadmin
+  TEST_S3_BUCKET: test-backups
+  TEST_S3_BUCKET_STYLE: path
+  BACKUP_IMAGE: postgres-backup-s3cmd:test
+
+jobs:
+  test:
+    name: Test (PG ${{ matrix.pg_version }})
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_version: [17]
+        # Add more versions later:
+        # pg_version: [17, 16, 15]
+    
+    services:
+      # PostgreSQL database for testing
+      postgres:
+        image: postgres:${{ matrix.pg_version }}-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U testuser -d testdb"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start MinIO
+        run: |
+          # Start MinIO in background
+          docker run -d \
+            --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest \
+            server /data
+          
+          # Wait for MinIO to be ready
+          echo "Waiting for MinIO to be ready..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:9000/minio/health/live > /dev/null 2>&1; then
+              echo "MinIO is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "MinIO failed to start"
+              docker logs minio
+              exit 1
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Set up MinIO bucket
+        run: |
+          # Install MinIO client
+          curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
+          chmod +x mc
+          
+          # Configure MinIO client
+          ./mc alias set local http://localhost:9000 minioadmin minioadmin
+          
+          # Create test bucket
+          ./mc mb --ignore-existing local/test-backups
+          
+          echo "MinIO bucket 'test-backups' created"
+
+      - name: Build backup image
+        run: |
+          docker build \
+            --build-arg PG_MAJOR=${{ matrix.pg_version }} \
+            --build-arg ALPINE_VERSION=3.21 \
+            -t ${{ env.BACKUP_IMAGE }} \
+            .
+          
+          echo "Backup image built successfully"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify services are ready
+        run: |
+          echo "Checking PostgreSQL..."
+          pg_isready -h localhost -p 5432 -U testuser
+          
+          echo "Checking MinIO..."
+          curl -sf http://localhost:9000/minio/health/live
+          
+          echo "All services are ready!"
+
+      - name: Run tests
+        run: |
+          chmod +x ./tests/run-ci-tests.sh
+          ./tests/run-ci-tests.sh
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-pg${{ matrix.pg_version }}
+          path: |
+            tests/*.log
+          retention-days: 7

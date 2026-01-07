@@ -1,0 +1,105 @@
+#!/bin/sh
+# env.sh - Validate environment and configure s3cmd
+#
+# This script is sourced by backup.sh and restore.sh.
+# It validates required environment variables and generates .s3cfg.
+#
+# Design decisions:
+# - Credentials are written to /root/.s3cfg (assumes trusted runtime)
+# - S3 signature version is handled automatically by s3cmd
+
+# -----------------------------------------------------------------------------
+# Validate required environment variables
+# -----------------------------------------------------------------------------
+
+if [ -z "${S3_BUCKET:-}" ]; then
+  echo "ERROR: S3_BUCKET environment variable is required."
+  exit 1
+fi
+
+if [ -z "${S3_ACCESS_KEY_ID:-}" ]; then
+  echo "ERROR: S3_ACCESS_KEY_ID environment variable is required."
+  exit 1
+fi
+
+if [ -z "${S3_SECRET_ACCESS_KEY:-}" ]; then
+  echo "ERROR: S3_SECRET_ACCESS_KEY environment variable is required."
+  exit 1
+fi
+
+if [ -z "${POSTGRES_HOST:-}" ]; then
+  echo "ERROR: POSTGRES_HOST environment variable is required."
+  exit 1
+fi
+
+if [ -z "${POSTGRES_USER:-}" ]; then
+  echo "ERROR: POSTGRES_USER environment variable is required."
+  exit 1
+fi
+
+if [ -z "${POSTGRES_PASSWORD:-}" ]; then
+  echo "ERROR: POSTGRES_PASSWORD environment variable is required."
+  exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# Set defaults for optional variables
+# -----------------------------------------------------------------------------
+
+POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+S3_REGION="${S3_REGION:-us-east-1}"
+S3_PREFIX="${S3_PREFIX:-backup}"
+PGDUMP_EXTRA_OPTS="${PGDUMP_EXTRA_OPTS:-}"
+
+# Note about POSTGRES_DATABASE:
+# If not set, pg_dumpall will be used to backup all databases.
+if [ -z "${POSTGRES_DATABASE:-}" ]; then
+  echo "INFO: POSTGRES_DATABASE not set, will use pg_dumpall for all databases."
+fi
+
+# -----------------------------------------------------------------------------
+# Configure s3cmd
+# -----------------------------------------------------------------------------
+
+# Determine S3 endpoint host and protocol
+if [ -n "${S3_ENDPOINT:-}" ]; then
+  # Custom endpoint (MinIO, Ceph, Wasabi, etc.)
+  S3_HOST=$(echo "$S3_ENDPOINT" | sed 's|https\?://||' | sed 's|/.*||')
+  if echo "$S3_ENDPOINT" | grep -q '^https'; then
+    S3_USE_HTTPS="True"
+  else
+    S3_USE_HTTPS="False"
+  fi
+  # For custom endpoints, use virtual-hosted style by default
+  # Set S3_BUCKET_STYLE=path for path-style URLs (bucket in URL path)
+  if [ "${S3_BUCKET_STYLE:-}" = "path" ]; then
+    # Path-style: bucket in URL path, not DNS
+    S3_HOST_BUCKET="${S3_HOST}"
+  else
+    # Virtual-hosted style: bucket.endpoint (default)
+    S3_HOST_BUCKET="%(bucket)s.${S3_HOST}"
+  fi
+else
+  # AWS S3 - uses virtual-hosted style by default
+  S3_HOST="s3.${S3_REGION}.amazonaws.com"
+  S3_USE_HTTPS="True"
+  S3_HOST_BUCKET="%(bucket)s.${S3_HOST}"
+fi
+
+# Generate s3cmd configuration file
+# Note: This writes credentials to disk. Container runtime must be trusted.
+cat > /root/.s3cfg << EOF
+[default]
+access_key = ${S3_ACCESS_KEY_ID}
+secret_key = ${S3_SECRET_ACCESS_KEY}
+host_base = ${S3_HOST}
+host_bucket = ${S3_HOST_BUCKET}
+use_https = ${S3_USE_HTTPS}
+signature_v2 = False
+EOF
+
+# -----------------------------------------------------------------------------
+# Export PostgreSQL password for pg_dump/pg_restore
+# -----------------------------------------------------------------------------
+
+export PGPASSWORD="${POSTGRES_PASSWORD}"
