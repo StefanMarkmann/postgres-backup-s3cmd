@@ -1,5 +1,5 @@
 .idea
 .env
-.docs/local
+docs/local/
 memory-bank
-.cline
+.clinerules
