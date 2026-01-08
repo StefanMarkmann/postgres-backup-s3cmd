@@ -131,6 +131,8 @@ Use standard cron syntax (including `@daily`, `@hourly`) for `SCHEDULE`.
 docker exec <container> sh backup.sh
 ```
 
+If you open an interactive shell in the container, `backup` (along with `restore`, `list`, `cleanup`, `delete`, `run`) is available as a convenient alias for the corresponding `/backup.sh` script.
+
 ### List Backups
 
 ```bash
