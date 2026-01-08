@@ -46,13 +46,26 @@ backup_line=""
 if [ $# -eq 1 ]; then
   # Restore specific timestamp
   timestamp="$1"
-  backup_line=$(list_backups_raw | awk -F'|' -v ts="$timestamp" '$1 == ts { print; exit }')
-  if [ -z "$backup_line" ]; then
+  key_base="${database_name}_${timestamp}.dump"
+  if [ -n "${PASSPHRASE:-}" ]; then
+    candidates="${key_base}.zst.gpg ${key_base}.gpg"
+  else
+    candidates="${key_base}.zst ${key_base}"
+  fi
+
+  key_suffix=""
+  for candidate in $candidates; do
+    if s3cmd_exec ls "${s3_uri_base}/${candidate}" >/dev/null 2>&1; then
+      key_suffix="$candidate"
+      break
+    fi
+  done
+
+  if [ -z "$key_suffix" ]; then
     log_error "Backup not found for '${database_name}' at timestamp: ${timestamp}"
     log_error "Use 'list.sh' to see available backups."
     exit 1
   fi
-  key_suffix=$(echo "$backup_line" | cut -d'|' -f2)
   s3_uri="${s3_uri_base}/${key_suffix}"
   log_info "Restoring backup from timestamp: ${timestamp}"
 else

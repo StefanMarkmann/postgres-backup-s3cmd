@@ -11,15 +11,16 @@ This project uses **semantic versioning with PostgreSQL compatibility suffixes**
 
 | Tag Pattern | Example | Mutability | Use Case |
 |-------------|---------|------------|----------|
-| `vX.Y.Z-pgNN` | `v1.0.0-pg17` | Immutable | Audit, air-gapped, rollback |
-| `vX.Y-pgNN` | `v1.0-pg17` | Mutable (patch) | Bugfixes only, conservative |
-| `vX-pgNN` | `v1-pg17` | Mutable (minor) | Features + bugfixes |
-| `NN` | `17` | Mutable | Always latest for PG major |
+| `vX.Y.Z-pgNN` | `v1.0.0-pg18` | Immutable | Audit, air-gapped, rollback |
+| `vX.Y-pgNN` | `v1.0-pg18` | Mutable (patch) | Bugfixes only, conservative |
+| `vX-pgNN` | `v1-pg18` | Mutable (minor) | Features + bugfixes |
+| `NN` | `18` | Mutable | Always latest for PG major |
 
 ## How Compatibility Aliases Move
 
-- `v1.0-pg17` only moves within `v1.0.x` — never to `v1.1+`
-- `v1-pg17` moves within `v1.x.y` — never to `v2+`
+- `v1.0-pg18` only moves within `v1.0.x` — never to `v1.1+`
+- `v1-pg18` moves within `v1.x.y` — never to `v2+`
+- `18` always points to the latest stable release for PostgreSQL 18
 - `17` always points to the latest stable release for PostgreSQL 17
 
 Mutable aliases always point to a **new image digest**; images are never rebuilt in place.
@@ -28,6 +29,7 @@ Mutable aliases always point to a **new image digest**; images are never rebuilt
 
 | PG Version | Latest Release | Recommended Tag |
 |------------|----------------|-----------------|
+| PostgreSQL 18 | v1.0.0-pg18 | `18` or `v1-pg18` |
 | PostgreSQL 17 | v1.0.0-pg17 | `17` or `v1-pg17` |
 | PostgreSQL 16 | v1.0.0-pg16 | `16` or `v1-pg16` |
 | PostgreSQL 15 | v1.0.0-pg15 | `15` or `v1-pg15` |
@@ -44,10 +46,10 @@ For backup tools, Alpine patch versions rarely matter to users. To reduce tag co
 
 | Strategy | Recommended Tag | Renovate Config |
 |----------|-----------------|-----------------|
-| Auto-update (bugfixes) | `v1.0-pg17` | Track `vX.Y-pgNN` pattern |
-| Auto-update (features) | `v1-pg17` | Track `vX-pgNN` pattern |
-| Manual updates only | `v1.0.0-pg17` | Disabled or manual PRs |
-| PG-version tracking | `17` | Track `NN` pattern |
+| Auto-update (bugfixes) | `v1.0-pg18` | Track `vX.Y-pgNN` pattern |
+| Auto-update (features) | `v1-pg18` | Track `vX-pgNN` pattern |
+| Manual updates only | `v1.0.0-pg18` | Disabled or manual PRs |
+| PG-version tracking | `18` | Track `NN` pattern |
 
 ### Renovate Examples
 

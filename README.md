@@ -41,14 +41,14 @@ If you need these features, consider [pgBackRest](https://pgbackrest.org/) or [B
 ```yaml
 services:
   postgres:
-    image: postgres:17
+    image: postgres:18
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mypassword
       POSTGRES_DB: mydb
 
   backup:
-    image: stefanmarkmann/postgres-backup-s3cmd:17
+    image: stefanmarkmann/postgres-backup-s3cmd:18
     environment:
       SCHEDULE: '@daily'
       BACKUP_KEEP_DAYS: 7
@@ -68,6 +68,7 @@ Images are tagged by PostgreSQL major version with semantic versioning:
 
 | PG Version | Recommended Tag | Immutable Tag |
 |------------|-----------------|---------------|
+| PostgreSQL 18 | `18` or `v1-pg18` | `v1.0.0-pg18` |
 | PostgreSQL 17 | `17` or `v1-pg17` | `v1.0.0-pg17` |
 | PostgreSQL 16 | `16` or `v1-pg16` | `v1.0.0-pg16` |
 | PostgreSQL 15 | `15` or `v1-pg15` | `v1.0.0-pg15` |
@@ -252,9 +253,9 @@ See [examples/kubernetes/](examples/kubernetes/) for reference manifests.
 
 ```bash
 docker build \
-  --build-arg ALPINE_VERSION=3.21 \
-  --build-arg PG_MAJOR=17 \
-  -t postgres-backup-s3cmd:17 .
+  --build-arg ALPINE_VERSION=3.23 \
+  --build-arg PG_MAJOR=18 \
+  -t postgres-backup-s3cmd:18 .
 ```
 
 ### Test with Docker Compose

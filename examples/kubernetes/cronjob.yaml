@@ -43,7 +43,7 @@ spec:
           
           containers:
             - name: backup
-              image: stefanmarkmann/postgres-backup-s3cmd:17
+              image: stefanmarkmann/postgres-backup-s3cmd:18
               imagePullPolicy: IfNotPresent
               
               env:

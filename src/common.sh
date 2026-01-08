@@ -120,16 +120,22 @@ list_backups_raw() {
   suffix_pattern=$(get_backup_suffix_grep_pattern)
   s3_uri_base=$(get_s3_uri_base)
   
-  s3cmd_exec ls "${s3_uri_base}/${database_prefix}_" 2>/dev/null \
-    | grep -E "${suffix_pattern}" \
-    | sort \
+  s3cmd_exec ls --recursive "${s3_uri_base}/" 2>/dev/null \
     | while read -r date time size uri; do
-        # Extract filename from URI
+        if [ -z "${uri:-}" ] || [ "${size:-}" = "DIR" ]; then
+          continue
+        fi
         filename=$(basename "$uri")
-        # Extract timestamp from filename (format: dbname_YYYY-MM-DDTHH:MM:SS.dump[.zst][.gpg])
-        timestamp=$(echo "$filename" | sed "s/^${database_prefix}_//" | sed -E 's/\\.dump(\\.zst)?(\\.gpg)?$//')
-        echo "${timestamp}|${filename}|${size}"
-      done
+        case "$filename" in
+          "${database_prefix}_"*)
+            if echo "$filename" | grep -Eq "${suffix_pattern}"; then
+              # Extract timestamp from filename (format: dbname_YYYY-MM-DDTHH:MM:SS.dump[.zst][.gpg])
+              timestamp=$(echo "$filename" | sed "s/^${database_prefix}_//" | sed -E 's/\\.dump(\\.zst)?(\\.gpg)?$//')
+              echo "${timestamp}|${filename}|${size}"
+            fi
+            ;;
+        esac
+      done | sort
 }
 
 # Get latest backup info
