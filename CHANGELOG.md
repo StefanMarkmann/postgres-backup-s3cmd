@@ -25,7 +25,7 @@ Initial public release.
 - Custom S3 endpoint support for non-AWS providers
 - Restore from latest or specific timestamp
 - Multi-architecture support (amd64, arm64)
-- PostgreSQL 17, 16, 15 support
+- PostgreSQL 18, 17, 16, 15 support
 - Backup listing with `list.sh` (table, summary, latest modes)
 - Manual cleanup with `cleanup.sh` (supports --dry-run)
 - Specific backup deletion with `delete.sh`

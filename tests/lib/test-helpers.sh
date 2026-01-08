@@ -165,7 +165,7 @@ is_infrastructure_running() {
 
 # Build the backup image for testing
 build_backup_image() {
-    local pg_version="${1:-17}"
+    local pg_version="${1:-18}"
     
     log_info "Building backup image (PG ${pg_version})..."
     

@@ -46,7 +46,7 @@ POSTGRES_PASSWORD="testpassword"
 POSTGRES_DATABASE="testdb"
 
 # Images to test
-SIEMENS_IMAGE="siemens/postgres-backup-s3:17"
+SIEMENS_IMAGE="siemens/postgres-backup-s3:18"
 OUR_IMAGE="postgres-backup-s3cmd:test"
 
 log_info() {
@@ -111,7 +111,7 @@ start_postgres() {
         -e POSTGRES_USER="${POSTGRES_USER}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
         -e POSTGRES_DB="${POSTGRES_DATABASE}" \
-        postgres:17-alpine > /dev/null
+        postgres:18-alpine > /dev/null
     
     log_info "Waiting for PostgreSQL to be ready..."
     local max_attempts=30
@@ -135,7 +135,7 @@ stop_postgres() {
 build_our_image() {
     log_info "Building our s3cmd-based image..."
     docker build -t "${OUR_IMAGE}" \
-        --build-arg PG_MAJOR=17 \
+        --build-arg PG_MAJOR=18 \
         --build-arg ALPINE_VERSION=3.21 \
         "$PROJECT_DIR" > /dev/null 2>&1
     log_info "Our image built successfully"

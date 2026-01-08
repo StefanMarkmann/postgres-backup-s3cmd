@@ -3,17 +3,17 @@
 #
 # Build args:
 #   ALPINE_VERSION - Alpine Linux version (e.g., 3.21)
-#   PG_MAJOR - PostgreSQL major version (e.g., 17)
+#   PG_MAJOR - PostgreSQL major version (e.g., 18)
 #
 # Example:
-#   docker build --build-arg ALPINE_VERSION=3.21 --build-arg PG_MAJOR=17 -t postgres-backup-s3cmd:17 .
+#   docker build --build-arg ALPINE_VERSION=3.21 --build-arg PG_MAJOR=18 -t postgres-backup-s3cmd:18 .
 
 ARG ALPINE_VERSION=3.21
 
 FROM alpine:${ALPINE_VERSION}
 
 ARG TARGETARCH
-ARG PG_MAJOR=17
+ARG PG_MAJOR=18
 
 # Build-time arguments for OCI labels (set by CI)
 ARG BUILD_VERSION=dev

@@ -54,7 +54,7 @@ For restore, run a one-off pod:
 
 ```bash
 kubectl run postgres-restore --rm -it \
-  --image=stefanmarkmann/postgres-backup-s3cmd:17 \
+  --image=stefanmarkmann/postgres-backup-s3cmd:18 \
   --env-from=secret/postgres-backup-secret \
   --command -- sh /restore.sh
 ```

@@ -108,7 +108,7 @@ start_postgres() {
         -e POSTGRES_USER="${POSTGRES_USER}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
         -e POSTGRES_DB="${POSTGRES_DATABASE}" \
-        postgres:17-alpine
+        postgres:18-alpine
     
     # Wait for PostgreSQL to be ready
     log_info "Waiting for PostgreSQL to be ready..."
@@ -135,7 +135,7 @@ stop_postgres() {
 build_image() {
     log_info "Building test image..."
     docker build -t postgres-backup-s3cmd:test \
-        --build-arg PG_MAJOR=17 \
+        --build-arg PG_MAJOR=18 \
         --build-arg ALPINE_VERSION=3.21 \
         "$PROJECT_DIR" > /dev/null 2>&1
     log_info "Image built successfully"

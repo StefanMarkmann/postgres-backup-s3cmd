@@ -13,7 +13,7 @@
 services:
   # PostgreSQL database
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
@@ -63,7 +63,7 @@ services:
       context: .
       args:
         ALPINE_VERSION: "3.21"
-        PG_MAJOR: "17"
+        PG_MAJOR: "18"
     depends_on:
       postgres:
         condition: service_healthy
