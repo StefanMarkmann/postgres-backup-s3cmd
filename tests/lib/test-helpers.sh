@@ -171,7 +171,7 @@ build_backup_image() {
     
     docker build -t "$BACKUP_IMAGE" \
         --build-arg PG_MAJOR="$pg_version" \
-        --build-arg ALPINE_VERSION=3.21 \
+        --build-arg ALPINE_VERSION=3.23.2 \
         "$PROJECT_DIR" > /dev/null 2>&1
     
     log_info "Backup image built successfully"
