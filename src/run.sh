@@ -104,7 +104,7 @@ ${SCHEDULE} /bin/sh /cron.sh
 EOF
   chmod 0600 "$cron_tab"
 
-  exec crond -n -s -l 8
+  exec crond -n -s
 else
   log_info "Running single backup..."
   exec /bin/sh /backup.sh

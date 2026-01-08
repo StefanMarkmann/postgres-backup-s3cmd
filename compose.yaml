@@ -83,6 +83,7 @@ services:
       S3_BUCKET: ${S3_BUCKET:-backups}
       S3_PREFIX: ${S3_PREFIX:-backup}
       S3_ENDPOINT: http://minio:9000
+      S3_BUCKET_STYLE: ${S3_BUCKET_STYLE:-path}
       # Backup settings
       SCHEDULE: ${SCHEDULE:-}
       PASSPHRASE: ${PASSPHRASE:-}

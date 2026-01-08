@@ -38,6 +38,7 @@ LABEL org.opencontainers.image.title="postgres-backup-s3cmd" \
 # Install dependencies
 RUN apk update \
   && apk add --no-cache \
+  bash \
   "postgresql${PG_MAJOR}-client" \
   cronie \
   gnupg \
@@ -81,6 +82,22 @@ COPY src/restore.sh /restore.sh
 COPY src/list.sh /list.sh
 COPY src/cleanup.sh /cleanup.sh
 COPY src/delete.sh /delete.sh
+COPY src/profile.d/pgbackup-welcome.sh /etc/profile.d/pgbackup-welcome.sh
+COPY src/bash.bashrc /etc/bash.bashrc
+COPY src/root.bashrc /root/.bashrc
+
+# Prepare GnuPG home and ensure scripts are executable
+RUN mkdir -p /root/.gnupg \
+  && chmod 700 /root/.gnupg \
+  && chmod a+x \
+    /common.sh \
+    /env.sh \
+    /run.sh \
+    /backup.sh \
+    /restore.sh \
+    /list.sh \
+    /cleanup.sh \
+    /delete.sh
 
 # Set working directory
 WORKDIR /

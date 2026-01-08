@@ -243,9 +243,14 @@ print_config() {
 # Print S3 connection status and backup summary
 print_s3_status() {
   echo "Checking S3 connection..."
-  if ! test_s3_connection; then
-    log_error "S3 connection failed!"
+  s3cmd_exec ls "s3://${S3_BUCKET}/${S3_PREFIX}/" >/dev/null 2>&1
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    log_error "S3 connection failed (s3cmd exit ${status})!"
     log_error "Please verify: credentials, endpoint, bucket name, and permissions."
+    log_error "s3cmd output:"
+    s3cmd_exec ls "s3://${S3_BUCKET}/${S3_PREFIX}/" 2>&1 \
+      | sed 's/^/  /' >&2
     return 1
   fi
   echo "  S3 connection: OK"
