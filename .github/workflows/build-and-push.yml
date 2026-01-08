@@ -35,7 +35,7 @@ jobs:
       matrix:
         include:
           - pg: 18
-            alpine: "3.21"
+            alpine: "3.23"
           - pg: 17
             alpine: "3.21"
           - pg: 16

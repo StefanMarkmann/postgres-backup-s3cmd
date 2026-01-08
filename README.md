@@ -253,7 +253,7 @@ See [examples/kubernetes/](examples/kubernetes/) for reference manifests.
 
 ```bash
 docker build \
-  --build-arg ALPINE_VERSION=3.21 \
+  --build-arg ALPINE_VERSION=3.23 \
   --build-arg PG_MAJOR=18 \
   -t postgres-backup-s3cmd:18 .
 ```
