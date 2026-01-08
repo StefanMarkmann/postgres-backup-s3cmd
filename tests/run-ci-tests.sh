@@ -190,6 +190,7 @@ main() {
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         
         test_missing_env_vars || failed=true
+        test_crontab_setup || failed=true
         test_db_unreachable || failed=true
         test_s3_unreachable || failed=true
         test_restore_no_backup || failed=true
