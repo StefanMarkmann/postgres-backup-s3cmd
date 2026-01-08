@@ -120,8 +120,11 @@ list_backups_raw() {
   suffix_pattern=$(get_backup_suffix_grep_pattern)
   s3_uri_base=$(get_s3_uri_base)
   
-  s3cmd_exec ls "${s3_uri_base}/" 2>/dev/null \
+  s3cmd_exec ls --recursive "${s3_uri_base}/" 2>/dev/null \
     | while read -r date time size uri; do
+        if [ -z "${uri:-}" ] || [ "${size:-}" = "DIR" ]; then
+          continue
+        fi
         filename=$(basename "$uri")
         case "$filename" in
           "${database_prefix}_"*)
