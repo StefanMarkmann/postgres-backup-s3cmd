@@ -42,6 +42,39 @@ fi
 # -----------------------------------------------------------------------------
 
 backup_line=""
+backup_list_file=""
+
+cleanup_backup_list() {
+  if [ -n "${backup_list_file:-}" ] && [ -f "$backup_list_file" ]; then
+    rm -f "$backup_list_file"
+  fi
+}
+
+prompt_restore_confirmations() {
+  confirm_yes=""
+  confirm_detail=""
+  backup_timestamp="$1"
+  backup_filename="$2"
+
+  if [ ! -t 0 ]; then
+    log_warn "Non-interactive restore detected; skipping confirmations."
+    return 0
+  fi
+
+  printf "Type YES to proceed with restore: "
+  read -r confirm_yes || confirm_yes=""
+  if [ "$confirm_yes" != "YES" ]; then
+    log_error "Restore aborted: confirmation failed."
+    exit 1
+  fi
+
+  printf "Type the backup timestamp or filename to confirm (%s): " "$backup_timestamp"
+  read -r confirm_detail || confirm_detail=""
+  if [ "$confirm_detail" != "$backup_timestamp" ] && [ "$confirm_detail" != "$backup_filename" ]; then
+    log_error "Restore aborted: confirmation mismatch."
+    exit 1
+  fi
+}
 
 if [ $# -eq 1 ]; then
   # Restore specific timestamp
@@ -69,18 +102,59 @@ if [ $# -eq 1 ]; then
   s3_uri="${s3_uri_base}/${key_suffix}"
   log_info "Restoring backup from timestamp: ${timestamp}"
 else
-  # Restore latest backup
-  log_info "Finding latest backup for '${database_name}'..."
-  backup_line=$(get_latest_backup)
-  if [ -z "$backup_line" ]; then
+  # Restore latest backup (interactive selection)
+  log_info "Listing available backups for '${database_name}'..."
+  backup_list_file=$(mktemp)
+  trap cleanup_backup_list EXIT
+  list_backups_raw > "$backup_list_file"
+
+  if [ ! -s "$backup_list_file" ]; then
     log_error "No backup found for '${database_name}'"
     exit 1
   fi
 
+  index=0
+  while IFS='|' read -r line_timestamp line_filename line_size; do
+    index=$((index + 1))
+    line_size_human=$(format_size "$line_size")
+    printf "%s) %s | %s | %s\n" "$index" "$line_timestamp" "$line_filename" "$line_size_human"
+  done < "$backup_list_file"
+
+  total_backups=$(wc -l < "$backup_list_file" | tr -d ' ')
+  if [ ! -t 0 ]; then
+    selection="$total_backups"
+    log_warn "Non-interactive restore detected; selecting latest backup."
+  else
+    while :; do
+      printf "Select a backup by number (1-%s, Enter for latest): " "$total_backups"
+      read -r selection || selection=""
+      if [ -z "$selection" ]; then
+        selection="$total_backups"
+        break
+      fi
+      case "$selection" in
+        *[!0-9]*)
+          log_error "Invalid selection '${selection}'. Enter a number between 1 and ${total_backups}."
+          ;;
+        *)
+          if [ "$selection" -lt 1 ] || [ "$selection" -gt "$total_backups" ]; then
+            log_error "Selection '${selection}' out of range. Enter 1-${total_backups}."
+          else
+            break
+          fi
+          ;;
+      esac
+    done
+  fi
+
+  backup_line=$(sed -n "${selection}p" "$backup_list_file")
+  timestamp=$(echo "$backup_line" | cut -d'|' -f1)
   key_suffix=$(echo "$backup_line" | cut -d'|' -f2)
   s3_uri="${s3_uri_base}/${key_suffix}"
-  log_info "Found: ${key_suffix}"
+  log_info "Selected: ${key_suffix}"
 fi
+
+prompt_restore_confirmations "$timestamp" "$key_suffix"
 
 # -----------------------------------------------------------------------------
 # Download backup from S3
