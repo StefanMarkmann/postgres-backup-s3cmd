@@ -183,7 +183,7 @@ environment:
 docker exec <container> sh restore.sh
 ```
 
-Running without arguments now lists available backups with sizes and prompts for a selection (press Enter for the latest). The script then requires two confirmations: typing `YES`, followed by either the timestamp or the filename shown in the list.
+Running without arguments now lists available backups with sizes and prompts for a selection (press Enter for the latest). The script then requires two confirmations: typing `YES`, followed by either the timestamp or the filename shown in the list. In non-interactive environments, it automatically selects the latest backup and skips confirmations.
 
 ### Restore Specific Backup
 
@@ -191,7 +191,7 @@ Running without arguments now lists available backups with sizes and prompts for
 docker exec <container> sh restore.sh 2026-01-07T14:30:00
 ```
 
-Restoring a specific timestamp still prompts for the same two confirmations before download and restore.
+Restoring a specific timestamp still prompts for the same two confirmations before download and restore. In non-interactive environments, it skips the confirmations.
 
 > ⚠️ **Warning:** Restore is destructive. It will drop and recreate database objects.
 

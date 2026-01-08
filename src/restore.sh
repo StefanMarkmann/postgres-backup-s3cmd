@@ -56,15 +56,20 @@ prompt_restore_confirmations() {
   backup_timestamp="$1"
   backup_filename="$2"
 
+  if [ ! -t 0 ]; then
+    log_warn "Non-interactive restore detected; skipping confirmations."
+    return 0
+  fi
+
   printf "Type YES to proceed with restore: "
-  read -r confirm_yes
+  read -r confirm_yes || confirm_yes=""
   if [ "$confirm_yes" != "YES" ]; then
     log_error "Restore aborted: confirmation failed."
     exit 1
   fi
 
   printf "Type the backup timestamp or filename to confirm (%s): " "$backup_timestamp"
-  read -r confirm_detail
+  read -r confirm_detail || confirm_detail=""
   if [ "$confirm_detail" != "$backup_timestamp" ] && [ "$confirm_detail" != "$backup_filename" ]; then
     log_error "Restore aborted: confirmation mismatch."
     exit 1
@@ -116,26 +121,31 @@ else
   done < "$backup_list_file"
 
   total_backups=$(wc -l < "$backup_list_file" | tr -d ' ')
-  while :; do
-    printf "Select a backup by number (1-%s, Enter for latest): " "$total_backups"
-    read -r selection
-    if [ -z "$selection" ]; then
-      selection="$total_backups"
-      break
-    fi
-    case "$selection" in
-      *[!0-9]*)
-        log_error "Invalid selection '${selection}'. Enter a number between 1 and ${total_backups}."
-        ;;
-      *)
-        if [ "$selection" -lt 1 ] || [ "$selection" -gt "$total_backups" ]; then
-          log_error "Selection '${selection}' out of range. Enter 1-${total_backups}."
-        else
-          break
-        fi
-        ;;
-    esac
-  done
+  if [ ! -t 0 ]; then
+    selection="$total_backups"
+    log_warn "Non-interactive restore detected; selecting latest backup."
+  else
+    while :; do
+      printf "Select a backup by number (1-%s, Enter for latest): " "$total_backups"
+      read -r selection || selection=""
+      if [ -z "$selection" ]; then
+        selection="$total_backups"
+        break
+      fi
+      case "$selection" in
+        *[!0-9]*)
+          log_error "Invalid selection '${selection}'. Enter a number between 1 and ${total_backups}."
+          ;;
+        *)
+          if [ "$selection" -lt 1 ] || [ "$selection" -gt "$total_backups" ]; then
+            log_error "Selection '${selection}' out of range. Enter 1-${total_backups}."
+          else
+            break
+          fi
+          ;;
+      esac
+    done
+  fi
 
   backup_line=$(sed -n "${selection}p" "$backup_list_file")
   timestamp=$(echo "$backup_line" | cut -d'|' -f1)
