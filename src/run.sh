@@ -53,7 +53,7 @@ fi
 
 if [ -n "${SCHEDULE:-}" ]; then
   log_info "Scheduler started. Backups will run on schedule: ${SCHEDULE}"
-  exec go-cron -s "${SCHEDULE}" -- /bin/sh /backup.sh
+  exec go-cron "${SCHEDULE}" -- /bin/sh /backup.sh
 else
   log_info "Running single backup..."
   exec /bin/sh /backup.sh
