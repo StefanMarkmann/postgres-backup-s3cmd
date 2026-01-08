@@ -2,13 +2,43 @@
 
 Simple PostgreSQL dump backups to S3-compatible storage using s3cmd.
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/stefanmarkmann/postgres-backup-s3cmd)](https://hub.docker.com/r/stefanmarkmann/postgres-backup-s3cmd)
-[![Build Status](https://github.com/StefanMarkmann/postgres-backup-s3cmd/actions/workflows/build-and-push.yml/badge.svg)](https://github.com/StefanMarkmann/postgres-backup-s3cmd/actions)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![S3 Compatible](https://img.shields.io/badge/S3-Compatible-orange?logo=amazons3&logoColor=white)
+![Bash](https://img.shields.io/badge/Bash-4EAA25?logo=gnu-bash&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
 
 This project provides Docker images to periodically back up PostgreSQL databases to S3-compatible object storage, and restore from backups as needed.
+
+## Features
+
+- [x] S3-compatible uploads via s3cmd
+- [x] Encryption (GPG symmetric)
+- [x] Full dumps (pg_dump or pg_dumpall)
+- [x] Compression (zstd)
+- [x] Scheduled or on-demand runs
+- [x] Retention cleanup by age
+- [x] Restore from backups
+
+## Backup Flow
+
+```mermaid
+flowchart LR
+  db[(PostgreSQL DB)]
+  s3[(S3-Compatible Storage)]
+
+  subgraph container["Backup Container"]
+    pg_dump[pg_dump / pg_dumpall]
+    zip[zstd compression]
+    encrypt[gpg encryption]
+    upload[s3cmd upload]
+    pg_dump --> zip --> encrypt --> upload
+  end
+
+  db --> pg_dump
+  upload --> s3
+```
 
 **Why s3cmd?**
 
