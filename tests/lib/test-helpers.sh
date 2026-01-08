@@ -38,6 +38,9 @@ export TEST_S3_BUCKET_STYLE="${TEST_S3_BUCKET_STYLE:-path}"  # MinIO requires pa
 # Backup image (can be overridden for CI with pre-built image)
 export BACKUP_IMAGE="${BACKUP_IMAGE:-postgres-backup-s3cmd:test}"
 
+# Local test container names (only used for local docker-compose runs)
+export TEST_POSTGRES_CONTAINER="${TEST_POSTGRES_CONTAINER:-backup-test-postgres}"
+
 # Test state
 TEST_COUNT=0
 TEST_PASSED=0
@@ -110,8 +113,22 @@ stop_test_infrastructure() {
 wait_for_postgres() {
     local max_attempts=30
     local attempt=0
-    
-    while ! pg_isready -h "$TEST_PG_HOST" -p "$TEST_PG_PORT" -U "$TEST_PG_USER" > /dev/null 2>&1; do
+
+    if command -v pg_isready >/dev/null 2>&1; then
+        while ! pg_isready -h "$TEST_PG_HOST" -p "$TEST_PG_PORT" -U "$TEST_PG_USER" > /dev/null 2>&1; do
+            attempt=$((attempt + 1))
+            if [[ $attempt -ge $max_attempts ]]; then
+                log_error "PostgreSQL failed to start within ${max_attempts} seconds"
+                return 1
+            fi
+            sleep 1
+        done
+        return 0
+    fi
+
+    # Fallback for local runs without a host PostgreSQL client installed.
+    # Uses the dockerized postgres container started by tests/compose.test.yaml.
+    while ! docker exec "$TEST_POSTGRES_CONTAINER" pg_isready -U "$TEST_PG_USER" -d "$TEST_PG_DATABASE" > /dev/null 2>&1; do
         attempt=$((attempt + 1))
         if [[ $attempt -ge $max_attempts ]]; then
             log_error "PostgreSQL failed to start within ${max_attempts} seconds"
@@ -166,23 +183,33 @@ build_backup_image() {
 
 # Execute SQL against test database
 psql_exec() {
-    PGPASSWORD="$TEST_PG_PASSWORD" psql \
-        -h "$TEST_PG_HOST" \
-        -p "$TEST_PG_PORT" \
-        -U "$TEST_PG_USER" \
-        -d "$TEST_PG_DATABASE" \
-        "$@"
+    if command -v psql >/dev/null 2>&1; then
+        PGPASSWORD="$TEST_PG_PASSWORD" psql \
+            -h "$TEST_PG_HOST" \
+            -p "$TEST_PG_PORT" \
+            -U "$TEST_PG_USER" \
+            -d "$TEST_PG_DATABASE" \
+            "$@"
+    else
+        docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "$TEST_PG_DATABASE" "$@"
+    fi
 }
 
 # Execute SQL and return result (no formatting)
 psql_query() {
-    PGPASSWORD="$TEST_PG_PASSWORD" psql \
-        -h "$TEST_PG_HOST" \
-        -p "$TEST_PG_PORT" \
-        -U "$TEST_PG_USER" \
-        -d "$TEST_PG_DATABASE" \
-        -t -A \
-        "$@"
+    if command -v psql >/dev/null 2>&1; then
+        PGPASSWORD="$TEST_PG_PASSWORD" psql \
+            -h "$TEST_PG_HOST" \
+            -p "$TEST_PG_PORT" \
+            -U "$TEST_PG_USER" \
+            -d "$TEST_PG_DATABASE" \
+            -t -A \
+            "$@"
+    else
+        docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "$TEST_PG_DATABASE" -t -A "$@"
+    fi
 }
 
 # Load seed data into database
@@ -195,7 +222,12 @@ load_seed_data() {
     fi
     
     log_info "Loading seed data from $seed_file..."
-    psql_exec -f "$seed_file"
+    if command -v psql >/dev/null 2>&1; then
+        psql_exec -f "$seed_file"
+    else
+        docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "$TEST_PG_DATABASE" < "$seed_file"
+    fi
 }
 
 # Reset database to clean state
@@ -230,22 +262,32 @@ get_row_count() {
 psql_exec_db() {
     local database="$1"
     shift
-    PGPASSWORD="$TEST_PG_PASSWORD" psql \
-        -h "$TEST_PG_HOST" \
-        -p "$TEST_PG_PORT" \
-        -U "$TEST_PG_USER" \
-        -d "$database" \
-        "$@"
+    if command -v psql >/dev/null 2>&1; then
+        PGPASSWORD="$TEST_PG_PASSWORD" psql \
+            -h "$TEST_PG_HOST" \
+            -p "$TEST_PG_PORT" \
+            -U "$TEST_PG_USER" \
+            -d "$database" \
+            "$@"
+    else
+        docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "$database" "$@"
+    fi
 }
 
 # Execute SQL against postgres database (for CREATE/DROP DATABASE)
 psql_admin() {
-    PGPASSWORD="$TEST_PG_PASSWORD" psql \
-        -h "$TEST_PG_HOST" \
-        -p "$TEST_PG_PORT" \
-        -U "$TEST_PG_USER" \
-        -d "postgres" \
-        "$@"
+    if command -v psql >/dev/null 2>&1; then
+        PGPASSWORD="$TEST_PG_PASSWORD" psql \
+            -h "$TEST_PG_HOST" \
+            -p "$TEST_PG_PORT" \
+            -U "$TEST_PG_USER" \
+            -d "postgres" \
+            "$@"
+    else
+        docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "postgres" "$@"
+    fi
 }
 
 # Create a test database with sample data
@@ -294,13 +336,19 @@ drop_test_database() {
 database_exists() {
     local dbname="$1"
     local exists
-    exists=$(PGPASSWORD="$TEST_PG_PASSWORD" psql \
-        -h "$TEST_PG_HOST" \
-        -p "$TEST_PG_PORT" \
-        -U "$TEST_PG_USER" \
-        -d "postgres" \
-        -t -A \
-        -c "SELECT 1 FROM pg_database WHERE datname = '$dbname';" 2>/dev/null || echo "")
+    if command -v psql >/dev/null 2>&1; then
+        exists=$(PGPASSWORD="$TEST_PG_PASSWORD" psql \
+            -h "$TEST_PG_HOST" \
+            -p "$TEST_PG_PORT" \
+            -U "$TEST_PG_USER" \
+            -d "postgres" \
+            -t -A \
+            -c "SELECT 1 FROM pg_database WHERE datname = '$dbname';" 2>/dev/null || echo "")
+    else
+        exists=$(docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "postgres" -t -A \
+            -c "SELECT 1 FROM pg_database WHERE datname = '$dbname';" 2>/dev/null || echo "")
+    fi
     [[ "$exists" == "1" ]]
 }
 
@@ -308,25 +356,37 @@ database_exists() {
 get_row_count_db() {
     local database="$1"
     local table="${2:-db_test_data}"
-    PGPASSWORD="$TEST_PG_PASSWORD" psql \
-        -h "$TEST_PG_HOST" \
-        -p "$TEST_PG_PORT" \
-        -U "$TEST_PG_USER" \
-        -d "$database" \
-        -t -A \
-        -c "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo "0"
+    if command -v psql >/dev/null 2>&1; then
+        PGPASSWORD="$TEST_PG_PASSWORD" psql \
+            -h "$TEST_PG_HOST" \
+            -p "$TEST_PG_PORT" \
+            -U "$TEST_PG_USER" \
+            -d "$database" \
+            -t -A \
+            -c "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo "0"
+    else
+        docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "$database" -t -A \
+            -c "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo "0"
+    fi
 }
 
 # Get marker value from test database (for verification)
 get_db_marker() {
     local database="$1"
-    PGPASSWORD="$TEST_PG_PASSWORD" psql \
-        -h "$TEST_PG_HOST" \
-        -p "$TEST_PG_PORT" \
-        -U "$TEST_PG_USER" \
-        -d "$database" \
-        -t -A \
-        -c "SELECT DISTINCT marker FROM db_test_data LIMIT 1;" 2>/dev/null || echo ""
+    if command -v psql >/dev/null 2>&1; then
+        PGPASSWORD="$TEST_PG_PASSWORD" psql \
+            -h "$TEST_PG_HOST" \
+            -p "$TEST_PG_PORT" \
+            -U "$TEST_PG_USER" \
+            -d "$database" \
+            -t -A \
+            -c "SELECT DISTINCT marker FROM db_test_data LIMIT 1;" 2>/dev/null || echo ""
+    else
+        docker exec -i -e PGPASSWORD="$TEST_PG_PASSWORD" "$TEST_POSTGRES_CONTAINER" \
+            psql -U "$TEST_PG_USER" -d "$database" -t -A \
+            -c "SELECT DISTINCT marker FROM db_test_data LIMIT 1;" 2>/dev/null || echo ""
+    fi
 }
 
 #######################################

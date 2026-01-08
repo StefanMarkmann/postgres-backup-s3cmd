@@ -103,7 +103,7 @@ expected_uri="${s3_uri_base}/${expected_filename}"
 log_info "Looking for backup: ${expected_filename}"
 
 # Use s3cmd ls to verify the file exists
-found_key=$(s3cmd ls "$expected_uri" 2>/dev/null | awk '{ print $4 }')
+found_key=$(s3cmd_exec ls "$expected_uri" 2>/dev/null | awk '{ print $4 }')
 
 if [ -z "$found_key" ]; then
   log_error "Backup not found: ${expected_filename}"
@@ -112,7 +112,7 @@ if [ -z "$found_key" ]; then
 fi
 
 # Get file size for confirmation
-file_info=$(s3cmd ls "$expected_uri" 2>/dev/null)
+file_info=$(s3cmd_exec ls "$expected_uri" 2>/dev/null)
 file_size=$(echo "$file_info" | awk '{ print $3 }')
 file_size_human=$(format_size "$file_size")
 
@@ -135,7 +135,7 @@ fi
 
 log_info "Deleting backup..."
 
-if s3cmd del "$expected_uri"; then
+if s3cmd_exec del "$expected_uri"; then
   log_info "Backup deleted successfully: ${expected_filename}"
 else
   log_error "Failed to delete backup: ${expected_filename}"

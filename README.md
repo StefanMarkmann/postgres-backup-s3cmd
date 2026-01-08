@@ -95,6 +95,9 @@ Images are tagged by PostgreSQL major version with semantic versioning:
 | `S3_REGION` | `us-east-1` | S3 region (for AWS S3) |
 | `S3_PREFIX` | `backup` | S3 key prefix (folder) |
 | `S3_ENDPOINT` | - | Custom S3 endpoint URL |
+| `S3_BUCKET_STYLE` | `virtual` | Bucket URL style for custom endpoints (`virtual` or `path`) |
+| `S3CFG_PATH` | `/root/.s3cfg` | Path to s3cmd config file (generated unless `S3CFG_USE_EXISTING=true`) |
+| `S3CFG_USE_EXISTING` | - | If set to `true`, use existing `S3CFG_PATH` and allow omitting `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` |
 | `SCHEDULE` | - | Cron schedule (omit for single run) |
 | `PASSPHRASE` | - | GPG encryption passphrase |
 | `BACKUP_KEEP_DAYS` | - | Auto-delete backups older than N days |
@@ -226,6 +229,7 @@ environment:
 
 **Recommendations:**
 - Use Docker secrets or Kubernetes secrets for credentials
+- Prefer mounting a pre-created s3cmd config as a secret (`S3CFG_USE_EXISTING=true`, `S3CFG_PATH=/run/secrets/s3cfg`) to avoid generating credential files at runtime
 - Run with read-only root filesystem where possible
 - Limit container capabilities
 

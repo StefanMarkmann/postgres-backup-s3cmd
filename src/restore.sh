@@ -63,7 +63,7 @@ else
   
   # Find the latest backup by sorting s3cmd ls output
   latest_key=$(
-    s3cmd ls "${s3_uri_base}/${database_name}_" 2>/dev/null \
+    s3cmd_exec ls "${s3_uri_base}/${database_name}_" 2>/dev/null \
       | grep "${file_type}$" \
       | sort \
       | tail -n 1 \
@@ -85,7 +85,7 @@ fi
 # -----------------------------------------------------------------------------
 
 log_info "Downloading backup from S3..."
-s3cmd get "$s3_uri" "db${file_type}"
+s3cmd_exec get "$s3_uri" "db${file_type}"
 
 # -----------------------------------------------------------------------------
 # Decrypt backup (if encrypted)
@@ -93,7 +93,7 @@ s3cmd get "$s3_uri" "db${file_type}"
 
 if [ -n "${PASSPHRASE:-}" ]; then
   log_info "Decrypting backup..."
-  gpg --decrypt --batch --passphrase "$PASSPHRASE" db.dump.gpg > db.dump
+  gpg --decrypt --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" db.dump.gpg > db.dump
   rm db.dump.gpg
 fi
 

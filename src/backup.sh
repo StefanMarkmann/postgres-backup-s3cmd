@@ -59,7 +59,7 @@ s3_uri_base="s3://${S3_BUCKET}/${S3_PREFIX}/${database_name}_${timestamp}.dump"
 
 if [ -n "${PASSPHRASE:-}" ]; then
   log_info "Encrypting backup..."
-  gpg --symmetric --batch --passphrase "$PASSPHRASE" db.dump
+  gpg --symmetric --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" db.dump
   rm db.dump
   local_file="db.dump.gpg"
   s3_uri="${s3_uri_base}.gpg"
@@ -81,7 +81,7 @@ file_size_bytes=$(stat -c%s "$local_file" 2>/dev/null || stat -f%z "$local_file"
 log_info "Uploading backup to s3://${S3_BUCKET}/${S3_PREFIX}/..."
 
 upload_start=$(date +%s)
-s3cmd put "$local_file" "$s3_uri"
+s3cmd_exec put "$local_file" "$s3_uri"
 upload_end=$(date +%s)
 
 upload_seconds=$((upload_end - upload_start))

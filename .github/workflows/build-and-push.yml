@@ -64,10 +64,21 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "is_release=true" >> $GITHUB_OUTPUT
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            version_no_v="${GITHUB_REF#refs/tags/v}"
+            echo "version_no_v=${version_no_v}" >> $GITHUB_OUTPUT
+            major="$(echo "${version_no_v}" | cut -d. -f1)"
+            minor="$(echo "${version_no_v}" | cut -d. -f2)"
+            echo "major=${major}" >> $GITHUB_OUTPUT
+            echo "major_minor=${major}.${minor}" >> $GITHUB_OUTPUT
+            echo "build_version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
             echo "is_release=false" >> $GITHUB_OUTPUT
-            echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+            sha_short="$(echo ${{ github.sha }} | cut -c1-7)"
+            echo "sha_short=${sha_short}" >> $GITHUB_OUTPUT
+            echo "build_version=sha-${sha_short}" >> $GITHUB_OUTPUT
           fi
+          
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
       
       - name: Extract metadata for Docker (production tags)
         id: meta_prod
@@ -78,10 +89,10 @@ jobs:
           tags: |
             # Short PG version tag (e.g., 17)
             type=raw,value=${{ matrix.pg }}
-            # Version + PG tag (e.g., v0.1.0-pg17)
+            # Version + PG tags (e.g., v1-pg17, v1.0-pg17, v1.0.0-pg17)
+            type=raw,value=v${{ steps.tag_strategy.outputs.major }}-pg${{ matrix.pg }}
+            type=raw,value=v${{ steps.tag_strategy.outputs.major_minor }}-pg${{ matrix.pg }}
             type=raw,value=${{ steps.tag_strategy.outputs.version }}-pg${{ matrix.pg }}
-            # Long tag with Alpine version (e.g., 17-alpine3.21)
-            type=raw,value=${{ matrix.pg }}-alpine${{ matrix.alpine }}
       
       - name: Extract metadata for Docker (dev tags)
         id: meta_dev
@@ -94,6 +105,18 @@ jobs:
             type=raw,value=sha-${{ steps.tag_strategy.outputs.sha_short }}-pg${{ matrix.pg }}
             # Main branch tag (e.g., main-pg17)
             type=raw,value=main-pg${{ matrix.pg }}
+
+      - name: Extract metadata for Docker (PR tags)
+        id: meta_pr
+        if: github.event_name == 'pull_request'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # PR tag (local build only; not pushed)
+            type=raw,value=pr-${{ github.event.pull_request.number }}-pg${{ matrix.pg }}
+            # SHA tag (e.g., sha-abc123f-pg17)
+            type=raw,value=sha-${{ steps.tag_strategy.outputs.sha_short }}-pg${{ matrix.pg }}
       
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -104,8 +127,11 @@ jobs:
           build-args: |
             ALPINE_VERSION=${{ matrix.alpine }}
             PG_MAJOR=${{ matrix.pg }}
-          tags: ${{ steps.meta_prod.outputs.tags || steps.meta_dev.outputs.tags }}
-          labels: ${{ steps.meta_prod.outputs.labels || steps.meta_dev.outputs.labels }}
+            BUILD_VERSION=${{ steps.tag_strategy.outputs.build_version }}
+            BUILD_DATE=${{ steps.tag_strategy.outputs.build_date }}
+            VCS_REF=${{ github.sha }}
+          tags: ${{ steps.meta_prod.outputs.tags || steps.meta_dev.outputs.tags || steps.meta_pr.outputs.tags }}
+          labels: ${{ steps.meta_prod.outputs.labels || steps.meta_dev.outputs.labels || steps.meta_pr.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

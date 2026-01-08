@@ -39,6 +39,7 @@ for arg in "$@"; do
       echo ""
       echo "Arguments:"
       echo "  <days>      Retention period in days (overrides BACKUP_KEEP_DAYS)"
+      echo "             Use 0 to delete everything under the prefix"
       echo "  --dry-run   Show what would be deleted without deleting"
       echo ""
       echo "Environment:"
@@ -72,8 +73,9 @@ if [ -z "$DAYS" ]; then
 fi
 
 # Validate days is a positive integer
-if ! echo "$DAYS" | grep -qE '^[1-9][0-9]*$'; then
-  log_error "Retention days must be a positive integer: $DAYS"
+# Days may be 0 (delete everything under the prefix).
+if ! echo "$DAYS" | grep -qE '^[0-9]+$'; then
+  log_error "Retention days must be a non-negative integer: $DAYS"
   exit 1
 fi
 
@@ -90,16 +92,6 @@ fi
 # Calculate cutoff date
 # -----------------------------------------------------------------------------
 
-# Note: Uses BusyBox date syntax
-sec=$((86400 * DAYS))
-cutoff_date=$(date -d "@$(($(date +%s) - sec))" +%Y-%m-%d)
-
-if [ -n "$DRY_RUN" ]; then
-  log_info "[DRY-RUN] Would remove backups older than ${cutoff_date} (${DAYS} days)"
-else
-  log_info "Removing backups older than ${cutoff_date} (${DAYS} days)..."
-fi
-
 # -----------------------------------------------------------------------------
 # Find and delete old backups
 # -----------------------------------------------------------------------------
@@ -108,23 +100,58 @@ s3_uri_base=$(get_s3_uri_base)
 deleted_count=0
 failed_count=0
 
-# List objects and process those older than cutoff
-s3cmd ls "${s3_uri_base}/" 2>/dev/null \
-  | awk -v cutoff="$cutoff_date" '$1 < cutoff { print $4 }' \
-  | while read -r key; do
-      if [ -n "$key" ]; then
-        if [ -n "$DRY_RUN" ]; then
-          log_info "[DRY-RUN] Would delete: $key"
-        else
-          log_info "Deleting: $key"
-          if s3cmd del "$key" 2>/dev/null; then
-            : # success
+if [ "$DAYS" -eq 0 ]; then
+  if [ -n "$DRY_RUN" ]; then
+    log_info "[DRY-RUN] Would remove ALL backups under ${s3_uri_base}/"
+  else
+    log_info "Removing ALL backups under ${s3_uri_base}/..."
+  fi
+
+  s3cmd_exec ls "${s3_uri_base}/" 2>/dev/null \
+    | awk '{ print $4 }' \
+    | while read -r key; do
+        if [ -n "$key" ]; then
+          if [ -n "$DRY_RUN" ]; then
+            log_info "[DRY-RUN] Would delete: $key"
           else
-            log_warn "Failed to delete: $key"
+            log_info "Deleting: $key"
+            if s3cmd_exec del "$key" 2>/dev/null; then
+              : # success
+            else
+              log_warn "Failed to delete: $key"
+            fi
           fi
         fi
-      fi
-    done || true
+      done || true
+else
+  # Note: Uses BusyBox date syntax
+  sec=$((86400 * DAYS))
+  cutoff_date=$(date -d "@$(($(date +%s) - sec))" +%Y-%m-%d)
+
+  if [ -n "$DRY_RUN" ]; then
+    log_info "[DRY-RUN] Would remove backups older than ${cutoff_date} (${DAYS} days)"
+  else
+    log_info "Removing backups older than ${cutoff_date} (${DAYS} days)..."
+  fi
+
+  # List objects and process those older than cutoff
+  s3cmd_exec ls "${s3_uri_base}/" 2>/dev/null \
+    | awk -v cutoff="$cutoff_date" '$1 < cutoff { print $4 }' \
+    | while read -r key; do
+        if [ -n "$key" ]; then
+          if [ -n "$DRY_RUN" ]; then
+            log_info "[DRY-RUN] Would delete: $key"
+          else
+            log_info "Deleting: $key"
+            if s3cmd_exec del "$key" 2>/dev/null; then
+              : # success
+            else
+              log_warn "Failed to delete: $key"
+            fi
+          fi
+        fi
+      done || true
+fi
 
 if [ -n "$DRY_RUN" ]; then
   log_info "[DRY-RUN] Cleanup simulation complete."

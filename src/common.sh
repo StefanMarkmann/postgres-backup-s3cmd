@@ -55,10 +55,20 @@ format_size() {
 # S3 connectivity
 # -----------------------------------------------------------------------------
 
+# Run s3cmd with our generated (or mounted) config.
+# env.sh exports S3CFG_PATH.
+s3cmd_exec() {
+  if [ -n "${S3CFG_PATH:-}" ]; then
+    s3cmd -c "${S3CFG_PATH}" "$@"
+  else
+    s3cmd "$@"
+  fi
+}
+
 # Test S3 connection by listing the prefix
 # Returns 0 on success, non-zero on failure
 test_s3_connection() {
-  s3cmd ls "s3://${S3_BUCKET}/${S3_PREFIX}/" >/dev/null 2>&1
+  s3cmd_exec ls "s3://${S3_BUCKET}/${S3_PREFIX}/" >/dev/null 2>&1
 }
 
 # Get S3 URI base for backups
@@ -95,7 +105,7 @@ list_backups_raw() {
   file_ext=$(get_file_extension)
   s3_uri_base=$(get_s3_uri_base)
   
-  s3cmd ls "${s3_uri_base}/${database_prefix}_" 2>/dev/null \
+  s3cmd_exec ls "${s3_uri_base}/${database_prefix}_" 2>/dev/null \
     | grep "${file_ext}$" \
     | sort \
     | while read -r date time size uri; do
