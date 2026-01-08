@@ -29,7 +29,7 @@ kubectl apply -f secret.yaml
 ### 2. Configure Deployment
 
 Edit `deployment.yaml`:
-- Set `SCHEDULE` to your desired cron schedule (remove for a single run)
+- Set `SCHEDULE` to your desired cron schedule (use a Job or `kubectl exec` for one-off runs)
 - Set `POSTGRES_HOST` to your PostgreSQL service
 - Set `POSTGRES_DATABASE` (or remove for pg_dumpall)
 - Set `S3_BUCKET` and `S3_ENDPOINT`

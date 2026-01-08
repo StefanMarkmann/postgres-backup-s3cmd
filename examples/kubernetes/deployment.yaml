@@ -10,7 +10,7 @@
 #   kubectl apply -f deployment.yaml
 #
 # The container runs an internal scheduler when SCHEDULE is set.
-# Omit SCHEDULE for a single backup run.
+# Use a Job for one-off backups to avoid restarts in a Deployment.
 
 apiVersion: apps/v1
 kind: Deployment
