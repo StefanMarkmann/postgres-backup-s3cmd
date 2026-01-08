@@ -8,7 +8,7 @@
 # Example:
 #   docker build --build-arg ALPINE_VERSION=3.23 --build-arg PG_MAJOR=18 -t postgres-backup-s3cmd:18 .
 
-ARG ALPINE_VERSION=3.23
+ARG ALPINE_VERSION=3.23.2
 
 FROM alpine:${ALPINE_VERSION}
 
@@ -23,21 +23,28 @@ ARG VCS_REF
 # OCI Image Labels
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
 LABEL org.opencontainers.image.title="postgres-backup-s3cmd" \
-      org.opencontainers.image.description="PostgreSQL dump backups to S3-compatible storage using s3cmd" \
-      org.opencontainers.image.version="${BUILD_VERSION}" \
-      org.opencontainers.image.created="${BUILD_DATE}" \
-      org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://github.com/StefanMarkmann/postgres-backup-s3cmd" \
-      org.opencontainers.image.url="https://github.com/StefanMarkmann/postgres-backup-s3cmd" \
-      org.opencontainers.image.documentation="https://github.com/StefanMarkmann/postgres-backup-s3cmd#readme" \
-      org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.base.name="alpine:${ALPINE_VERSION}" \
-      io.github.stefanmarkmann.pg_major="${PG_MAJOR}" \
-      io.github.stefanmarkmann.alpine_version="${ALPINE_VERSION}"
+  org.opencontainers.image.description="PostgreSQL dump backups to S3-compatible storage using s3cmd" \
+  org.opencontainers.image.version="${BUILD_VERSION}" \
+  org.opencontainers.image.created="${BUILD_DATE}" \
+  org.opencontainers.image.revision="${VCS_REF}" \
+  org.opencontainers.image.source="https://github.com/StefanMarkmann/postgres-backup-s3cmd" \
+  org.opencontainers.image.url="https://github.com/StefanMarkmann/postgres-backup-s3cmd" \
+  org.opencontainers.image.documentation="https://github.com/StefanMarkmann/postgres-backup-s3cmd#readme" \
+  org.opencontainers.image.licenses="MIT" \
+  org.opencontainers.image.base.name="alpine:${ALPINE_VERSION}" \
+  io.github.stefanmarkmann.pg_major="${PG_MAJOR}" \
+  io.github.stefanmarkmann.alpine_version="${ALPINE_VERSION}"
 
 # Install dependencies
-COPY src/install.sh /install.sh
-RUN PG_MAJOR=${PG_MAJOR} TARGETARCH=${TARGETARCH} sh /install.sh && rm /install.sh
+RUN apk update \
+  && apk add "postgresql${PG_MAJOR}-client" \
+  && apk add gnupg \
+  && apk add s3cmd \
+  && apk add zstd \
+  && apk add --no-cache --virtual .build-deps go \
+  && GOBIN=/usr/local/bin CGO_ENABLED=0 go install "github.com/ivoronin/go-cron@v0.0.5" \
+  && apk del .build-deps \
+  && rm -rf /var/cache/apk/* /root/.cache/go-build /root/go
 
 # PostgreSQL connection
 ENV POSTGRES_HOST=''
