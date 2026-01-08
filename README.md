@@ -24,9 +24,8 @@ This project provides Docker images to periodically back up PostgreSQL databases
 ## Backup Flow
 
 ```mermaid
-flowchart LR
+flowchart TB
   db[(PostgreSQL DB)]
-  s3[(S3-Compatible Storage)]
 
   subgraph container["Backup Container"]
     pg_dump[pg_dump / pg_dumpall]
@@ -35,6 +34,8 @@ flowchart LR
     upload[s3cmd upload]
     pg_dump --> zip --> encrypt --> upload
   end
+
+  s3[(S3-Compatible Storage)]
 
   db --> pg_dump
   upload --> s3
