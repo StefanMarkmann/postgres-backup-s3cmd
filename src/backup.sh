@@ -51,6 +51,9 @@ else
   database_name="all"
 fi
 
+# Capture raw dump size for logging/compression ratio
+raw_size_bytes=$(stat -c%s db.dump 2>/dev/null || stat -f%z db.dump 2>/dev/null)
+
 # -----------------------------------------------------------------------------
 # Encrypt backup (optional)
 # -----------------------------------------------------------------------------
@@ -64,6 +67,7 @@ s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${backup_basename}${backup_ext}"
 # -----------------------------------------------------------------------------
 
 local_file="db.dump"
+compressed_size_bytes="$raw_size_bytes"
 
 if [ "${COMPRESSION:-}" = "zstd" ]; then
   log_info "Compressing backup with zstd (level=${ZSTD_LEVEL}, checksum=${ZSTD_CHECKSUM})..."
@@ -76,6 +80,7 @@ if [ "${COMPRESSION:-}" = "zstd" ]; then
   # shellcheck disable=SC2086
   zstd ${zstd_args} "$local_file"
   local_file="${local_file}.zst"
+  compressed_size_bytes=$(stat -c%s "$local_file" 2>/dev/null || stat -f%z "$local_file" 2>/dev/null)
 fi
 
 if [ -n "${PASSPHRASE:-}" ]; then
@@ -117,6 +122,10 @@ log_info "Backup complete."
 echo ""
 echo "Summary:"
 echo "  File:         $(basename "$s3_uri")"
+echo "  Raw size:     $(format_size "$raw_size_bytes")"
+echo "  Compressed:   $(format_size "$compressed_size_bytes")"
+compression_ratio=$(awk "BEGIN {if ($compressed_size_bytes > 0) {printf \"%.2f\", $raw_size_bytes / $compressed_size_bytes} else {printf \"0.00\"}}")
+echo "  Ratio:        ${compression_ratio}x"
 echo "  Size:         $(format_size "$file_size_bytes")"
 echo "  Upload time:  ${upload_seconds}s"
 
@@ -127,6 +136,9 @@ echo "  Speed:        $(format_size "$speed_bps")/s"
 # Machine-parseable stats for future monitoring integration
 echo ""
 echo "backup.stats.file=$(basename "$s3_uri")"
+echo "backup.stats.raw_bytes=${raw_size_bytes}"
+echo "backup.stats.compressed_bytes=${compressed_size_bytes}"
+echo "backup.stats.compression_ratio=${compression_ratio}"
 echo "backup.stats.size_bytes=${file_size_bytes}"
 echo "backup.stats.upload_seconds=${upload_seconds}"
 # Calculate MB/s with one decimal place
