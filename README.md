@@ -123,7 +123,7 @@ environment:
   # SCHEDULE: '0 2 * * *'  # Daily at 2 AM
 ```
 
-See [go-cron documentation](http://godoc.org/github.com/robfig/cron#hdr-Predefined_schedules) for schedule syntax.
+Use standard cron syntax (including `@daily`, `@hourly`) for `SCHEDULE`.
 
 ### Manual Backup
 

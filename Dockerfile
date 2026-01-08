@@ -37,14 +37,13 @@ LABEL org.opencontainers.image.title="postgres-backup-s3cmd" \
 
 # Install dependencies
 RUN apk update \
-  && apk add "postgresql${PG_MAJOR}-client" \
-  && apk add gnupg \
-  && apk add s3cmd \
-  && apk add zstd \
-  && apk add --no-cache --virtual .build-deps go \
-  && GOBIN=/usr/local/bin CGO_ENABLED=0 go install "github.com/ivoronin/go-cron@v0.0.5" \
-  && apk del .build-deps \
-  && rm -rf /var/cache/apk/* /root/.cache/go-build /root/go
+  && apk add --no-cache \
+  "postgresql${PG_MAJOR}-client" \
+  cronie \
+  gnupg \
+  s3cmd \
+  zstd \
+  && rm -rf /var/cache/apk/*
 
 # PostgreSQL connection
 ENV POSTGRES_HOST=''
