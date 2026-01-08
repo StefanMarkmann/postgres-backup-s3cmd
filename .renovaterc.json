@@ -7,13 +7,19 @@
   "packageRules": [
     {
       "description": "Disable Alpine auto-updates (manually controlled per PG version)",
-      "matchManagers": ["dockerfile"],
-      "matchPackageNames": ["alpine"],
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchPackageNames": [
+        "alpine"
+      ],
       "enabled": false
     },
     {
       "description": "Group GitHub Actions updates",
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "github-actions"
     }
   ],
@@ -21,7 +27,9 @@
     {
       "description": "Track go-cron version in install.sh",
       "customType": "regex",
-      "fileMatch": ["^src/install\\.sh$"],
+      "managerFilePatterns": [
+        "/^src/install\\.sh$/"
+      ],
       "matchStrings": [
         "GO_CRON_VERSION=\"(?<currentValue>[^\"]+)\""
       ],
@@ -32,7 +40,9 @@
     {
       "description": "Track Alpine versions in GitHub Actions build matrix (per PG major)",
       "customType": "regex",
-      "fileMatch": ["^\\.github/workflows/build-and-push\\.yml$"],
+      "managerFilePatterns": [
+        "/^\\.github/workflows/build-and-push\\.yml$/"
+      ],
       "matchStrings": [
         "-\\s*pg:\\s*(?<pg>\\d+)\\s*\\n\\s*alpine:\\s*['\\\"](?<currentValue>[^'\\\"]+)['\\\"]"
       ],
