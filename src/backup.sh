@@ -69,7 +69,9 @@ if [ "${COMPRESSION:-}" = "zstd" ]; then
   log_info "Compressing backup with zstd (level=${ZSTD_LEVEL}, checksum=${ZSTD_CHECKSUM})..."
   zstd_args="-${ZSTD_LEVEL} -q --rm"
   if [ "${ZSTD_CHECKSUM}" = "true" ]; then
-    zstd_args="${zstd_args} --checksum"
+    zstd_args="${zstd_args} --check"
+  else
+    zstd_args="${zstd_args} --no-check"
   fi
   # shellcheck disable=SC2086
   zstd ${zstd_args} "$local_file"

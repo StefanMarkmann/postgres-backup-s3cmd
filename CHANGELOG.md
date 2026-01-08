@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Optional zstd compression (`COMPRESSION=zstd`) with embedded frame checksums (`ZSTD_CHECKSUM=true`) to detect corruption on restore
+- PostgreSQL 18 support
 
 ## [1.0.0] - 2026-01-08
 
@@ -25,7 +26,7 @@ Initial public release.
 - Custom S3 endpoint support for non-AWS providers
 - Restore from latest or specific timestamp
 - Multi-architecture support (amd64, arm64)
-- PostgreSQL 17, 16, 15 support
+- PostgreSQL 18, 17, 16, 15 support
 - Backup listing with `list.sh` (table, summary, latest modes)
 - Manual cleanup with `cleanup.sh` (supports --dry-run)
 - Specific backup deletion with `delete.sh`
