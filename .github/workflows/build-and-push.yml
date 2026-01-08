@@ -154,3 +154,63 @@ jobs:
           repository: ${{ env.IMAGE_NAME }}
           readme-filepath: ./README.md
           short-description: "Simple PostgreSQL dump backups to S3-compatible storage using s3cmd"
+
+  cleanup-dev-tags:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pg: 18
+          - pg: 17
+          - pg: 16
+          - pg: 15
+    steps:
+      - name: Resolve Docker Hub repo
+        id: repo
+        run: |
+          namespace="${IMAGE_NAME%%/*}"
+          repo="${IMAGE_NAME#*/}"
+          echo "namespace=${namespace}" >> "$GITHUB_OUTPUT"
+          echo "repo=${repo}" >> "$GITHUB_OUTPUT"
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+
+      - name: Get Docker Hub token
+        id: hub_token
+        run: |
+          token="$(curl -s -H "Content-Type: application/json" -X POST \
+            -d "{\"username\": \"${DOCKERHUB_USERNAME}\", \"password\": \"${DOCKERHUB_TOKEN}\"}" \
+            https://hub.docker.com/v2/users/login/ | jq -r .token)"
+          if [ -z "$token" ] || [ "$token" = "null" ]; then
+            echo "Failed to get Docker Hub token" >&2
+            exit 1
+          fi
+          echo "token=${token}" >> "$GITHUB_OUTPUT"
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Delete dev tags
+        run: |
+          sha_short="$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          tags=(
+            "main-pg${{ matrix.pg }}"
+            "sha-${sha_short}-pg${{ matrix.pg }}"
+          )
+          for tag in "${tags[@]}"; do
+            code="$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: JWT ${{ steps.hub_token.outputs.token }}" \
+              "https://hub.docker.com/v2/repositories/${{ steps.repo.outputs.namespace }}/${{ steps.repo.outputs.repo }}/tags/${tag}/")"
+            if [ "$code" = "404" ]; then
+              echo "Tag ${tag} not found; skipping"
+              continue
+            fi
+            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+              echo "Failed to delete tag ${tag} (HTTP ${code})" >&2
+              exit 1
+            fi
+            echo "Deleted tag ${tag}"
+          done
