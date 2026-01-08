@@ -28,6 +28,18 @@
       "depNameTemplate": "ivoronin/go-cron",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Track Alpine versions in GitHub Actions build matrix (per PG major)",
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/build-and-push\\.yml$"],
+      "matchStrings": [
+        "-\\s*pg:\\s*(?<pg>\\d+)\\s*\\n\\s*alpine:\\s*['\\\"](?<currentValue>[^'\\\"]+)['\\\"]"
+      ],
+      "depNameTemplate": "alpine-pg{{{pg}}}",
+      "packageNameTemplate": "alpine",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver"
     }
   ]
 }
