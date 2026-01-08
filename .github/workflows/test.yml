@@ -41,19 +41,19 @@ jobs:
           - pg_version: "18"
             pg_image: "18.1-alpine3.23"
             pg_major: "18"
-            alpine_version: "3.23"
+            alpine_version: "3.23.2"
           - pg_version: "17"
             pg_image: "17-alpine"
             pg_major: "17"
-            alpine_version: "3.21"
+            alpine_version: "3.21.5"
           - pg_version: "16"
             pg_image: "16-alpine"
             pg_major: "16"
-            alpine_version: "3.20"
+            alpine_version: "3.20.8"
           - pg_version: "15"
             pg_image: "15-alpine"
             pg_major: "15"
-            alpine_version: "3.19"
+            alpine_version: "3.19.9"
 
     services:
       # PostgreSQL database for testing
