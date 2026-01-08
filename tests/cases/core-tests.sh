@@ -128,11 +128,11 @@ test_backup_restore_encrypted() {
         return 1
     fi
     
-    # Step 2: Verify backup is encrypted (.gpg extension)
+    # Step 2: Verify backup is encrypted (.gpg extension, optional .zst)
     log_info "Step 2: Verifying backup is encrypted..."
     local backup_list
     backup_list=$(run_list "$prefix" "--latest" "$passphrase" 2>&1 || true)
-    if ! assert_contains "$backup_list" ".dump.gpg" "Backup file has .gpg extension"; then
+    if ! assert_matches "$backup_list" "\\.dump(\\.zst)?\\.gpg" "Backup file has .gpg extension"; then
         failed=true
     fi
     
@@ -217,7 +217,7 @@ test_backup_restore_all() {
         return 1
     fi
     
-    # Step 2: Verify backup exists (file should be named all_*.dump)
+    # Step 2: Verify backup exists (file should be named all_*.dump[.zst])
     log_info "Step 2: Verifying backup exists..."
     local backup_output
     backup_output=$(docker run --rm \
@@ -234,8 +234,8 @@ test_backup_restore_all() {
         "$BACKUP_IMAGE" \
         sh -c '. /env.sh && s3cmd ls "s3://${S3_BUCKET}/${S3_PREFIX}/"' 2>&1 || true)
     
-    if ! echo "$backup_output" | grep -q "all_"; then
-        test_fail "Backup file 'all_*.dump' not found in S3"
+    if ! echo "$backup_output" | grep -Eq "all_.*\\.dump(\\.zst)?$"; then
+        test_fail "Backup file 'all_*.dump[.zst]' not found in S3"
         drop_test_database "$test_db1"
         drop_test_database "$test_db2"
         run_cleanup "$prefix" || true

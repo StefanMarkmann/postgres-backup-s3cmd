@@ -28,16 +28,6 @@ set -eu
 s3_uri_base=$(get_s3_uri_base)
 
 # -----------------------------------------------------------------------------
-# Determine file type (encrypted or not)
-# -----------------------------------------------------------------------------
-
-if [ -n "${PASSPHRASE:-}" ]; then
-  file_type=".dump.gpg"
-else
-  file_type=".dump"
-fi
-
-# -----------------------------------------------------------------------------
 # Determine database prefix
 # -----------------------------------------------------------------------------
 
@@ -51,32 +41,31 @@ fi
 # Get backup to restore
 # -----------------------------------------------------------------------------
 
+backup_line=""
+
 if [ $# -eq 1 ]; then
   # Restore specific timestamp
   timestamp="$1"
-  key_suffix="${database_name}_${timestamp}${file_type}"
+  backup_line=$(list_backups_raw | awk -F'|' -v ts="$timestamp" '$1 == ts { print; exit }')
+  if [ -z "$backup_line" ]; then
+    log_error "Backup not found for '${database_name}' at timestamp: ${timestamp}"
+    log_error "Use 'list.sh' to see available backups."
+    exit 1
+  fi
+  key_suffix=$(echo "$backup_line" | cut -d'|' -f2)
   s3_uri="${s3_uri_base}/${key_suffix}"
   log_info "Restoring backup from timestamp: ${timestamp}"
 else
   # Restore latest backup
   log_info "Finding latest backup for '${database_name}'..."
-  
-  # Find the latest backup by sorting s3cmd ls output
-  latest_key=$(
-    s3cmd_exec ls "${s3_uri_base}/${database_name}_" 2>/dev/null \
-      | grep "${file_type}$" \
-      | sort \
-      | tail -n 1 \
-      | awk '{ print $4 }'
-  )
-  
-  if [ -z "$latest_key" ]; then
+  backup_line=$(get_latest_backup)
+  if [ -z "$backup_line" ]; then
     log_error "No backup found for '${database_name}'"
     exit 1
   fi
-  
-  s3_uri="$latest_key"
-  key_suffix=$(echo "$latest_key" | sed "s|${s3_uri_base}/||")
+
+  key_suffix=$(echo "$backup_line" | cut -d'|' -f2)
+  s3_uri="${s3_uri_base}/${key_suffix}"
   log_info "Found: ${key_suffix}"
 fi
 
@@ -85,16 +74,31 @@ fi
 # -----------------------------------------------------------------------------
 
 log_info "Downloading backup from S3..."
-s3cmd_exec get "$s3_uri" "db${file_type}"
+download_file=$(basename "$s3_uri")
+s3cmd_exec get "$s3_uri" "$download_file"
 
 # -----------------------------------------------------------------------------
 # Decrypt backup (if encrypted)
 # -----------------------------------------------------------------------------
 
-if [ -n "${PASSPHRASE:-}" ]; then
+work_file="$download_file"
+
+if echo "$work_file" | grep -qE '\.gpg$'; then
   log_info "Decrypting backup..."
-  gpg --decrypt --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" db.dump.gpg > db.dump
-  rm db.dump.gpg
+  decrypted_file="${work_file%.gpg}"
+  gpg --decrypt --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" "$work_file" > "$decrypted_file"
+  rm "$work_file"
+  work_file="$decrypted_file"
+fi
+
+# -----------------------------------------------------------------------------
+# Decompress backup (if zstd)
+# -----------------------------------------------------------------------------
+
+if echo "$work_file" | grep -qE '\.zst$'; then
+  log_info "Decompressing backup with zstd (verifies checksum)..."
+  zstd -d -q --rm "$work_file"
+  work_file="${work_file%.zst}"
 fi
 
 # -----------------------------------------------------------------------------
@@ -113,7 +117,7 @@ if [ -n "${POSTGRES_DATABASE:-}" ]; then
     -U "$POSTGRES_USER" \
     -d "$POSTGRES_DATABASE" \
     --clean --if-exists \
-    db.dump
+    "$work_file"
 else
   # Full cluster restore using psql
   # Note: Restores roles and globals. Target cluster should be empty/disposable.
@@ -126,9 +130,9 @@ else
     -p "$POSTGRES_PORT" \
     -U "$POSTGRES_USER" \
     -d postgres \
-    -f db.dump
+    -f "$work_file"
 fi
 
-rm db.dump
+rm "$work_file"
 
 log_info "Restore complete."

@@ -62,6 +62,40 @@ POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 S3_REGION="${S3_REGION:-us-east-1}"
 S3_PREFIX="${S3_PREFIX:-backup}"
 PGDUMP_EXTRA_OPTS="${PGDUMP_EXTRA_OPTS:-}"
+COMPRESSION="${COMPRESSION:-zstd}"
+ZSTD_LEVEL="${ZSTD_LEVEL:-3}"
+ZSTD_CHECKSUM="${ZSTD_CHECKSUM:-true}"
+
+case "$COMPRESSION" in
+  ""|none)
+    COMPRESSION=""
+    ;;
+  zstd)
+    if ! command -v zstd >/dev/null 2>&1; then
+      echo "ERROR: COMPRESSION=zstd but 'zstd' is not installed in the image."
+      exit 1
+    fi
+    if ! echo "$ZSTD_LEVEL" | grep -qE '^[0-9]+$'; then
+      echo "ERROR: ZSTD_LEVEL must be an integer."
+      exit 1
+    fi
+    if [ "$ZSTD_LEVEL" -lt 1 ] || [ "$ZSTD_LEVEL" -gt 19 ]; then
+      echo "ERROR: ZSTD_LEVEL must be between 1 and 19."
+      exit 1
+    fi
+    case "$ZSTD_CHECKSUM" in
+      true|false) ;;
+      *)
+        echo "ERROR: ZSTD_CHECKSUM must be 'true' or 'false'."
+        exit 1
+        ;;
+    esac
+    ;;
+  *)
+    echo "ERROR: Unsupported COMPRESSION value: ${COMPRESSION} (supported: zstd, none)"
+    exit 1
+    ;;
+esac
 
 # Note about POSTGRES_DATABASE:
 # If not set, pg_dumpall will be used to backup all databases.

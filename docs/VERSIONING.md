@@ -128,6 +128,7 @@ Configuration:
   SCHEDULE:          0 2 * * *
   BACKUP_KEEP_DAYS:  7
   ENCRYPTION:        enabled
+  COMPRESSION:       zstd (level=3, checksum=true)
 
 Checking S3 connection...
   S3 connection: OK
@@ -146,12 +147,12 @@ After each backup, statistics are logged:
 [2026-01-07T14:30:15+00:00] Backup complete.
 
 Summary:
-  File:         mydb_2026-01-07T14:30:00.dump.gpg
+  File:         mydb_2026-01-07T14:30:00.dump.zst.gpg
   Size:         128.00 MB
   Upload time:  12s
   Speed:        10.67 MB/s
 
-backup.stats.file=mydb_2026-01-07T14:30:00.dump.gpg
+backup.stats.file=mydb_2026-01-07T14:30:00.dump.zst.gpg
 backup.stats.size_bytes=134217728
 backup.stats.upload_seconds=12
 backup.stats.upload_mbps=10.7

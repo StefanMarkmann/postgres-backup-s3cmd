@@ -91,10 +91,25 @@ get_database_prefix() {
 
 # Get file extension based on encryption
 get_file_extension() {
+  ext=".dump"
+  if [ "${COMPRESSION:-}" = "zstd" ]; then
+    ext="${ext}.zst"
+  fi
   if [ -n "${PASSPHRASE:-}" ]; then
-    echo ".dump.gpg"
+    ext="${ext}.gpg"
+  fi
+  echo "$ext"
+}
+
+# Get a grep -E pattern for acceptable backup file suffixes for the current
+# encryption mode. Compression is optional to allow restoring older backups.
+get_backup_suffix_grep_pattern() {
+  if [ -n "${PASSPHRASE:-}" ]; then
+    # Encrypted backups: .dump.gpg or .dump.zst.gpg
+    echo "\\.dump(\\.zst)?\\.gpg$"
   else
-    echo ".dump"
+    # Unencrypted backups: .dump or .dump.zst
+    echo "\\.dump(\\.zst)?$"
   fi
 }
 
@@ -102,17 +117,17 @@ get_file_extension() {
 # Output format: timestamp | filename | size_bytes
 list_backups_raw() {
   database_prefix=$(get_database_prefix)
-  file_ext=$(get_file_extension)
+  suffix_pattern=$(get_backup_suffix_grep_pattern)
   s3_uri_base=$(get_s3_uri_base)
   
   s3cmd_exec ls "${s3_uri_base}/${database_prefix}_" 2>/dev/null \
-    | grep "${file_ext}$" \
+    | grep -E "${suffix_pattern}" \
     | sort \
     | while read -r date time size uri; do
         # Extract filename from URI
         filename=$(basename "$uri")
-        # Extract timestamp from filename (format: dbname_YYYY-MM-DDTHH:MM:SS.dump[.gpg])
-        timestamp=$(echo "$filename" | sed "s/^${database_prefix}_//" | sed "s/${file_ext}$//")
+        # Extract timestamp from filename (format: dbname_YYYY-MM-DDTHH:MM:SS.dump[.zst][.gpg])
+        timestamp=$(echo "$filename" | sed "s/^${database_prefix}_//" | sed -E 's/\\.dump(\\.zst)?(\\.gpg)?$//')
         echo "${timestamp}|${filename}|${size}"
       done
 }
@@ -208,6 +223,11 @@ print_config() {
     echo "  ENCRYPTION:        enabled"
   else
     echo "  ENCRYPTION:        disabled"
+  fi
+  if [ "${COMPRESSION:-}" = "zstd" ]; then
+    echo "  COMPRESSION:       zstd (level=${ZSTD_LEVEL}, checksum=${ZSTD_CHECKSUM})"
+  else
+    echo "  COMPRESSION:       disabled"
   fi
   echo "  S3_ACCESS_KEY_ID:  set"
   echo "  S3_SECRET_KEY:     set"

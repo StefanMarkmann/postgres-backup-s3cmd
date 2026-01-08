@@ -17,6 +17,9 @@ apk add gnupg
 # Install s3cmd for S3-compatible storage
 apk add s3cmd
 
+# Install zstd for fast streaming compression (and built-in frame checksums)
+apk add zstd
+
 # Install curl for downloading go-cron
 apk add curl
 

@@ -55,17 +55,32 @@ fi
 # Encrypt backup (optional)
 # -----------------------------------------------------------------------------
 
-s3_uri_base="s3://${S3_BUCKET}/${S3_PREFIX}/${database_name}_${timestamp}.dump"
+backup_basename="${database_name}_${timestamp}"
+backup_ext=$(get_file_extension)
+s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${backup_basename}${backup_ext}"
+
+# -----------------------------------------------------------------------------
+# Compress backup (optional)
+# -----------------------------------------------------------------------------
+
+local_file="db.dump"
+
+if [ "${COMPRESSION:-}" = "zstd" ]; then
+  log_info "Compressing backup with zstd (level=${ZSTD_LEVEL}, checksum=${ZSTD_CHECKSUM})..."
+  zstd_args="-${ZSTD_LEVEL} -q --rm"
+  if [ "${ZSTD_CHECKSUM}" = "true" ]; then
+    zstd_args="${zstd_args} --checksum"
+  fi
+  # shellcheck disable=SC2086
+  zstd ${zstd_args} "$local_file"
+  local_file="${local_file}.zst"
+fi
 
 if [ -n "${PASSPHRASE:-}" ]; then
   log_info "Encrypting backup..."
-  gpg --symmetric --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" db.dump
-  rm db.dump
-  local_file="db.dump.gpg"
-  s3_uri="${s3_uri_base}.gpg"
-else
-  local_file="db.dump"
-  s3_uri="$s3_uri_base"
+  gpg --symmetric --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" "$local_file"
+  rm "$local_file"
+  local_file="${local_file}.gpg"
 fi
 
 # -----------------------------------------------------------------------------

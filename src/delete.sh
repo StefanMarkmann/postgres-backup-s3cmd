@@ -91,29 +91,21 @@ fi
 # Find the backup
 # -----------------------------------------------------------------------------
 
-database_prefix=$(get_database_prefix)
-file_ext=$(get_file_extension)
 s3_uri_base=$(get_s3_uri_base)
 
-# Construct expected filename
-expected_filename="${database_prefix}_${TIMESTAMP}${file_ext}"
-expected_uri="${s3_uri_base}/${expected_filename}"
+# Find exact timestamp match among available backups (supports optional compression)
+match=$(list_backups_raw | awk -F'|' -v ts="$TIMESTAMP" '$1 == ts { print $0 }' | tail -n 1)
 
-# Check if backup exists
-log_info "Looking for backup: ${expected_filename}"
-
-# Use s3cmd ls to verify the file exists
-found_key=$(s3cmd_exec ls "$expected_uri" 2>/dev/null | awk '{ print $4 }')
-
-if [ -z "$found_key" ]; then
-  log_error "Backup not found: ${expected_filename}"
+if [ -z "$match" ]; then
+  log_error "Backup not found for timestamp: ${TIMESTAMP}"
   log_error "Use 'list.sh' to see available backups."
   exit 1
 fi
 
-# Get file size for confirmation
-file_info=$(s3cmd_exec ls "$expected_uri" 2>/dev/null)
-file_size=$(echo "$file_info" | awk '{ print $3 }')
+expected_filename=$(echo "$match" | cut -d'|' -f2)
+expected_uri="${s3_uri_base}/${expected_filename}"
+file_size=$(echo "$match" | cut -d'|' -f3)
+
 file_size_human=$(format_size "$file_size")
 
 # -----------------------------------------------------------------------------

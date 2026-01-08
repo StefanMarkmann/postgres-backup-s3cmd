@@ -21,6 +21,10 @@ Unlike AWS CLI, `s3cmd` works reliably with S3-compatible storage providers that
 - Backblaze B2
 - Any S3-compatible storage
 
+**Compression + integrity**
+
+Backups are compressed with `zstd` by default. `zstd` frame checksums are enabled so corruption is detected automatically during restore (decompression fails).
+
 ## Non-Goals
 
 This tool is intentionally simple. It is **not**:
@@ -101,6 +105,9 @@ Images are tagged by PostgreSQL major version with semantic versioning:
 | `SCHEDULE` | - | Cron schedule (omit for single run) |
 | `PASSPHRASE` | - | GPG encryption passphrase |
 | `BACKUP_KEEP_DAYS` | - | Auto-delete backups older than N days |
+| `COMPRESSION` | `zstd` | Compression algorithm (`zstd` or `none`) |
+| `ZSTD_LEVEL` | `3` | zstd compression level (1–19) |
+| `ZSTD_CHECKSUM` | `true` | Enable zstd frame checksums (detect corruption on restore) |
 
 ## Usage
 
@@ -188,6 +195,8 @@ docker exec <container> sh restore.sh 2026-01-07T14:30:00
 | Single DB (`POSTGRES_DATABASE` set) | Target database must exist; roles not restored |
 | All DBs (`pg_dumpall`) | Roles restored; use empty/disposable cluster |
 
+If backups are compressed (`.zst`), restore automatically decompresses with `zstd -d`, which verifies the embedded checksum and fails fast on corruption.
+
 ## S3 Provider Examples
 
 ### MinIO
@@ -272,8 +281,8 @@ This project is a reimplementation inspired by [eeshugerman/postgres-backup-s3](
 
 - All PostgreSQL connection variables
 - `SCHEDULE`, `PASSPHRASE`, `BACKUP_KEEP_DAYS`
-- Backup file format (pg_dump custom format)
-- Encrypted backup format (GPG symmetric)
+- Backup file naming (`<db>_<timestamp>.dump[.zst][.gpg]`)
+- Encrypted backups (GPG symmetric)
 
 ## Acknowledgements
 
