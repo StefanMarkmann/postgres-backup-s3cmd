@@ -11,7 +11,7 @@ This project uses **semantic versioning with PostgreSQL compatibility suffixes**
 
 | Tag Pattern | Example | Mutability | Use Case |
 |-------------|---------|------------|----------|
-| `vX.Y.Z-pgNN` | `v1.0.0-pg18` | Immutable | Audit, air-gapped, rollback |
+| `vX.Y.Z-pgNN` | `v1.0.2-pg18` | Immutable | Audit, air-gapped, rollback |
 | `vX.Y-pgNN` | `v1.0-pg18` | Mutable (patch) | Bugfixes only, conservative |
 | `vX-pgNN` | `v1-pg18` | Mutable (minor) | Features + bugfixes |
 | `NN` | `18` | Mutable | Always latest for PG major |
@@ -29,10 +29,10 @@ Mutable aliases always point to a **new image digest**; images are never rebuilt
 
 | PG Version | Latest Release | Recommended Tag |
 |------------|----------------|-----------------|
-| PostgreSQL 18 | v1.0.0-pg18 | `18` or `v1-pg18` |
-| PostgreSQL 17 | v1.0.0-pg17 | `17` or `v1-pg17` |
-| PostgreSQL 16 | v1.0.0-pg16 | `16` or `v1-pg16` |
-| PostgreSQL 15 | v1.0.0-pg15 | `15` or `v1-pg15` |
+| PostgreSQL 18 | v1.0.2-pg18 | `18` or `v1-pg18` |
+| PostgreSQL 17 | v1.0.2-pg17 | `17` or `v1-pg17` |
+| PostgreSQL 16 | v1.0.2-pg16 | `16` or `v1-pg16` |
+| PostgreSQL 15 | v1.0.2-pg15 | `15` or `v1-pg15` |
 
 ## Why No Alpine Version in Tags?
 
@@ -48,7 +48,7 @@ For backup tools, Alpine patch versions rarely matter to users. To reduce tag co
 |----------|-----------------|-----------------|
 | Auto-update (bugfixes) | `v1.0-pg18` | Track `vX.Y-pgNN` pattern |
 | Auto-update (features) | `v1-pg18` | Track `vX-pgNN` pattern |
-| Manual updates only | `v1.0.0-pg18` | Disabled or manual PRs |
+| Manual updates only | `v1.0.2-pg18` | Disabled or manual PRs |
 | PG-version tracking | `18` | Track `NN` pattern |
 
 ### Renovate Examples
@@ -118,7 +118,7 @@ This ensures misconfigurations surface immediately in Kubernetes (CrashLoopBackO
 ### Example Startup Output
 
 ```
-postgres-backup-s3cmd v1.0.0
+postgres-backup-s3cmd v1.0.2
 [2026-01-07T20:00:00+00:00] Starting...
 
 Configuration:
