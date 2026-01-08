@@ -7,7 +7,7 @@ Reference manifests for deploying postgres-backup-s3cmd on Kubernetes.
 ## Files
 
 - `secret.yaml` - Template for storing credentials
-- `cronjob.yaml` - CronJob for scheduled backups
+- `deployment.yaml` - Deployment with internal scheduler
 
 ## Usage
 
@@ -26,29 +26,21 @@ Then apply:
 kubectl apply -f secret.yaml
 ```
 
-### 2. Configure CronJob
+### 2. Configure Deployment
 
-Edit `cronjob.yaml`:
+Edit `deployment.yaml`:
+- Set `SCHEDULE` to your desired cron schedule (use a Job or `kubectl exec` for one-off runs)
 - Set `POSTGRES_HOST` to your PostgreSQL service
 - Set `POSTGRES_DATABASE` (or remove for pg_dumpall)
 - Set `S3_BUCKET` and `S3_ENDPOINT`
-- Adjust schedule as needed
 
 Then apply:
 
 ```bash
-kubectl apply -f cronjob.yaml
+kubectl apply -f deployment.yaml
 ```
 
-### 3. Manual Backup
-
-Trigger a backup manually:
-
-```bash
-kubectl create job --from=cronjob/postgres-backup postgres-backup-manual
-```
-
-### 4. Restore
+### 3. Restore
 
 For restore, run a one-off pod:
 
@@ -58,6 +50,27 @@ kubectl run postgres-restore --rm -it \
   --env-from=secret/postgres-backup-secret \
   --command -- sh /restore.sh
 ```
+
+### 4. Manual Backup/Restore via exec
+
+You can also run one-off backups or restores in the running Deployment using `kubectl exec`:
+
+```bash
+POD_NAME=$(kubectl get pods -l app=postgres-backup -o jsonpath='{.items[0].metadata.name}')
+
+# Run a backup immediately
+kubectl exec "$POD_NAME" -- sh /backup.sh
+
+# Restore the latest backup
+kubectl exec "$POD_NAME" -- sh /restore.sh
+
+# Restore a specific timestamp
+kubectl exec "$POD_NAME" -- sh /restore.sh 2026-01-07T14:30:00
+```
+
+The test suite exercises these scripts directly (for example, `tests/run-tests.sh` calls
+`sh /backup.sh` and `sh /restore.sh`) so the manual commands align with how backups and
+restores are validated in CI.
 
 ## Security Notes
 
