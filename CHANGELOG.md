@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 (No changes yet)
 
+## [1.0.3] - 2026-01-09
+
+### Documentation
+
+- Update image tag references for the v1.0.3 release
+
 ## [1.0.2] - 2026-01-08
 
 ### Changed
@@ -47,6 +53,7 @@ This is a reimplementation inspired by [eeshugerman/postgres-backup-s3](https://
 - `S3_PATH` renamed to `S3_PREFIX` for consistency
 - `S3_S3V4` option removed (s3cmd handles signature versions automatically)
 
-[Unreleased]: https://github.com/StefanMarkmann/postgres-backup-s3cmd/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/StefanMarkmann/postgres-backup-s3cmd/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/StefanMarkmann/postgres-backup-s3cmd/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/StefanMarkmann/postgres-backup-s3cmd/compare/v1.0.0...v1.0.2
 [1.0.0]: https://github.com/StefanMarkmann/postgres-backup-s3cmd/releases/tag/v1.0.0

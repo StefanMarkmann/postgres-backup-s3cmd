@@ -99,10 +99,10 @@ Images are tagged by PostgreSQL major version with semantic versioning:
 
 | PG Version | Recommended Tag | Immutable Tag |
 |------------|-----------------|---------------|
-| PostgreSQL 18 | `18` or `v1-pg18` | `v1.0.2-pg18` |
-| PostgreSQL 17 | `17` or `v1-pg17` | `v1.0.2-pg17` |
-| PostgreSQL 16 | `16` or `v1-pg16` | `v1.0.2-pg16` |
-| PostgreSQL 15 | `15` or `v1-pg15` | `v1.0.2-pg15` |
+| PostgreSQL 18 | `18` or `v1-pg18` | `v1.0.3-pg18` |
+| PostgreSQL 17 | `17` or `v1-pg17` | `v1.0.3-pg17` |
+| PostgreSQL 16 | `16` or `v1-pg16` | `v1.0.3-pg16` |
+| PostgreSQL 15 | `15` or `v1-pg15` | `v1.0.3-pg15` |
 
 > **Note:** There is no `latest` tag. Use explicit versions for predictable deployments.
 >
