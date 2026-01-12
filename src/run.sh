@@ -100,7 +100,7 @@ EOF
   cat > "$cron_tab" << EOF
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-${SCHEDULE} /bin/sh /cron.sh
+${SCHEDULE} /bin/sh /cron.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
 EOF
   chmod 0600 "$cron_tab"
 
