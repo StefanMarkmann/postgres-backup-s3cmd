@@ -41,7 +41,7 @@ jobs:
           - pg: 16
             alpine: "3.23.2"
           - pg: 15
-            alpine: "3.22.2"
+            alpine: "3.23.4"
 
     steps:
       - name: Checkout repository
