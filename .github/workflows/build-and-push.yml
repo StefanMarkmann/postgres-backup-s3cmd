@@ -37,7 +37,7 @@ jobs:
           - pg: 18
             alpine: "3.23.2"
           - pg: 17
-            alpine: "3.23.2"
+            alpine: "3.23.4"
           - pg: 16
             alpine: "3.23.2"
           - pg: 15
